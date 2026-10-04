@@ -161,11 +161,10 @@ const movies: Movie[] = [
     synopsis:
       "The surviving Avengers and their allies attempt to reverse Thanos's actions after he erased half of all life in the universe.",
     formats: ["Regular", "IMAX", "4DX"],
-    poster: "https://en.wikipedia.org/wiki/Special:Redirect/file/Avengers_Endgame_poster.jpg",
+    poster: "https://smcine-digital-cdn.app.vista.co/media/entity/get/FilmPosterGraphic/HO00001643?width=200",
     tint: "#573d33",
     sourceUrl: "https://en.wikipedia.org/wiki/Avengers:_Endgame",
     advanceBooking: true,
-    monochrome: true,
   },
   {
     id: "hunger-games",
