@@ -924,7 +924,7 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
         <section className="hero" id="home" aria-labelledby="hero-title">
           <div className="hero-trailer" aria-hidden="true">
             <iframe
-              src="https://www.youtube.com/embed/8TZMtslA3UY?autoplay=1&mute=1&controls=0&loop=1&playlist=8TZMtslA3UY&modestbranding=1&rel=0"
+              src="https://www.youtube.com/embed/8TZMtslA3UY?autoplay=1&mute=1&controls=0&loop=1&playlist=8TZMtslA3UY&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3"
               title="Spider-Man: Brand New Day official trailer"
               allow="autoplay; encrypted-media"
               tabIndex={-1}
