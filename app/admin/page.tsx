@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowLeft, CalendarDays, Film, RefreshCw, Ticket, Users } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, Bell, CalendarDays, Film, RefreshCw, Ticket, Users } from "lucide-react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 type Booking = {
@@ -14,6 +14,7 @@ type Booking = {
   contact_email: string;
   total_amount: number;
   created_at: string;
+  status?: string;
 };
 
 const demoBookings: Booking[] = [
@@ -32,11 +33,29 @@ const movieSummary = [
 export default function AdminPage() {
   const [bookings, setBookings] = useState<Booking[]>(demoBookings);
   const [loading, setLoading] = useState(false);
+  const [notificationsRead, setNotificationsRead] = useState(false);
+
+  function readReservationRecords() {
+    const stored = JSON.parse(
+      window.localStorage.getItem("cinemaWorldReservations") ?? "[]",
+    ) as Booking[];
+    return [...stored, ...demoBookings].slice(0, 20);
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setBookings(readReservationRecords()), 0);
+    const handleStorage = () => setBookings(readReservationRecords());
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
 
   function refreshBookings() {
     setLoading(true);
     window.setTimeout(() => {
-      setBookings(demoBookings);
+      setBookings(readReservationRecords());
       setLoading(false);
     }, 350);
   }
@@ -50,9 +69,15 @@ export default function AdminPage() {
           <h1>Admin dashboard</h1>
           <p className="admin-intro">Monitor movie listings, cinema locations, and recent reservations from one place.</p>
         </div>
-        <button className="admin-refresh-button" type="button" onClick={refreshBookings} disabled={loading}>
-          <RefreshCw size={15} /> {loading ? "Refreshing..." : "Refresh"}
-        </button>
+        <div className="admin-header-actions">
+          <button className="admin-notification-button" type="button" aria-label="View booking notifications" onClick={() => setNotificationsRead(true)}>
+            <Bell size={16} />
+            {!notificationsRead && bookings.some((booking) => booking.status === "New") && <span>{bookings.filter((booking) => booking.status === "New").length}</span>}
+          </button>
+          <button className="admin-refresh-button" type="button" onClick={refreshBookings} disabled={loading}>
+            <RefreshCw size={15} /> {loading ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </header>
 
       <section className="admin-stat-grid" aria-label="CinemaWorld overview">
@@ -64,6 +89,32 @@ export default function AdminPage() {
             <small>{detail}</small>
           </article>
         ))}
+      </section>
+
+      <section className="admin-panel admin-notifications-panel" aria-labelledby="booking-notifications-heading">
+        <div className="admin-panel-heading">
+          <div>
+            <p className="section-kicker">Notifications</p>
+            <h2 id="booking-notifications-heading">New booking records</h2>
+          </div>
+          {!notificationsRead && <span className="admin-live-badge">Unread</span>}
+        </div>
+        {bookings.some((booking) => booking.status === "New") ? (
+          <div className="admin-notification-list">
+            {bookings.filter((booking) => booking.status === "New").slice(0, 5).map((booking) => (
+              <article className="admin-notification" key={booking.id}>
+                <span className="admin-notification-icon"><Ticket size={16} /></span>
+                <div>
+                  <strong>{booking.contact_name} booked {booking.movie_title}</strong>
+                  <p>{booking.seats.join(", ")} · {booking.show_date} · {booking.show_time}</p>
+                </div>
+                <span className="admin-notification-reference">{booking.id}</span>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="admin-empty-state">New reservations will appear here.</p>
+        )}
       </section>
 
       <section className="admin-panel">

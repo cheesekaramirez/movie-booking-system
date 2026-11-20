@@ -338,7 +338,6 @@ const movies: Movie[] = [
   },
 ];
 
-const tabs: MovieTab[] = ["Now showing", "Coming soon", "Advance booking"];
 const releaseDates: Record<string, string> = {
   "spider-man": "July 31, 2026",
   odyssey: "July 17, 2026",
@@ -356,7 +355,6 @@ const releaseDates: Record<string, string> = {
   "street-fighter": "October 16, 2026",
   hexed: "November 25, 2026",
 };
-const featuredMovies = movies.filter((movie) => movie.status === "Now showing");
 const screeningFormats = [
   {
     id: "2d",
@@ -454,9 +452,8 @@ function posterStyle(movie: Movie): PosterStyle {
   };
 }
 
-export default function CinemaWorld() {
-  const [activeTab, setActiveTab] = useState<MovieTab>("Now showing");
-  const [heroMovieIndex, setHeroMovieIndex] = useState(0);
+export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab?: MovieTab }) {
+  const activeTab = initialTab;
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingStep, setBookingStep] = useState<"selection" | "review" | "notice" | "confirmed">("selection");
@@ -527,8 +524,6 @@ export default function CinemaWorld() {
           : dates.map(dateKey),
   );
   const visibleMovies = movies.filter((movie) => movie.status === activeTab);
-  const featuredMovie = movies[0];
-  const activeHeroMovie = featuredMovies[heroMovieIndex];
   const selectedFormatDetails = screeningFormatDetails[selectedFormat];
   const bookingSeatRows = Array.from({ length: selectedFormatDetails.rows }, (_, rowIndex) => String.fromCharCode(65 + rowIndex));
   const halfSeatCount = selectedFormatDetails.seatsPerRow / 2;
@@ -553,13 +548,6 @@ export default function CinemaWorld() {
       && hasPaymentDetails,
   );
   const bookingStepNumber = bookingStep === "selection" ? 1 : bookingStep === "review" ? 2 : 3;
-
-  useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      setHeroMovieIndex((index) => (index + 1) % featuredMovies.length);
-    }, 4000);
-    return () => window.clearInterval(intervalId);
-  }, []);
 
   useEffect(() => {
     if (!supabase) return;
@@ -691,6 +679,37 @@ export default function CinemaWorld() {
     setBookingBusy(true);
     setBookingError("");
 
+    const referenceNumber = Math.floor(1000 + Math.random() * 9000);
+    const bookingCodeValue = `CW-${selectedDate.slice(0, 4)}-${referenceNumber}`;
+    const reservationRecord = {
+      id: bookingCodeValue,
+      movie_title: selectedMovie.title,
+      show_date: selectedDate,
+      show_time: selectedTime,
+      seats: selectedSeats,
+      contact_name: contactName,
+      contact_email: contactEmail,
+      contact_number: contactNumber,
+      cinema: selectedCinema,
+      format: selectedFormat,
+      payment_method: selectedPaymentMethod,
+      total_amount: selectedSeats.length * selectedFormatDetails.price,
+      created_at: new Date().toISOString(),
+      status: "New",
+    };
+
+    const storedReservations = JSON.parse(
+      window.localStorage.getItem("cinemaWorldReservations") ?? "[]",
+    ) as typeof reservationRecord[];
+    window.localStorage.setItem(
+      "cinemaWorldReservations",
+      JSON.stringify([reservationRecord, ...storedReservations].slice(0, 100)),
+    );
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: "cinemaWorldReservations",
+      newValue: JSON.stringify([reservationRecord, ...storedReservations].slice(0, 100)),
+    }));
+
     if (supabase) {
       const { data } = await supabase.auth.getUser();
       const { error } = await supabase.from("bookings").insert({
@@ -710,8 +729,7 @@ export default function CinemaWorld() {
       }
     }
 
-    const referenceNumber = Math.floor(1000 + Math.random() * 9000);
-    setBookingCode(`CW-${selectedDate.slice(0, 4)}-${referenceNumber}`);
+    setBookingCode(bookingCodeValue);
     setBookingBusy(false);
     setBookingStep("confirmed");
   }
@@ -895,8 +913,6 @@ export default function CinemaWorld() {
       </div>
     </div>
   );
-  const activeTabId = `tab-${activeTab.toLowerCase().replaceAll(" ", "-")}`;
-
   return (
     <div className="site-shell">
       <header className="site-header">
@@ -905,12 +921,13 @@ export default function CinemaWorld() {
           <span>CinemaWorld</span>
         </a>
         <nav className="main-nav" aria-label="Main navigation">
-          <a href="#movies" onClick={() => setActiveTab("Now showing")}>Now showing</a>
-          <a href="#movies" onClick={() => setActiveTab("Coming soon")}>Coming soon</a>
-          <a href="#movies" onClick={() => setActiveTab("Advance booking")}>Advance booking</a>
+          <a href="/now-showing" aria-current={activeTab === "Now showing" ? "page" : undefined}>Now showing</a>
+          <a href="/coming-soon" aria-current={activeTab === "Coming soon" ? "page" : undefined}>Coming soon</a>
+          <a href="/advance-booking" aria-current={activeTab === "Advance booking" ? "page" : undefined}>Advance booking</a>
         </nav>
         <div className="header-actions">
           <span className="header-location"><MapPin size={13} /> Manila, PH</span>
+          <a className="text-button" href="/admin">Admin</a>
           {userEmail ? (
             <button className="text-button" type="button" onClick={() => void signOut()} title={`Sign out ${userEmail}`}>
               <UserRound size={15} /> Sign out
@@ -924,59 +941,55 @@ export default function CinemaWorld() {
       </header>
 
       <main>
-        <section className="hero" id="home" aria-labelledby="hero-title">
-          <div className="hero-trailer" aria-hidden="true">
-            <iframe
-              src="https://www.youtube.com/embed/8TZMtslA3UY?autoplay=1&mute=1&controls=0&loop=1&playlist=8TZMtslA3UY&modestbranding=1&rel=0"
-              title="Spider-Man: Brand New Day official trailer"
-              allow="autoplay; encrypted-media"
-              tabIndex={-1}
-            />
-          </div>
-          <div className="hero-copy">
-            <h1 className="hero-title" id="hero-title"><span>Cherish Movie Moments With Friends and Family!</span></h1>
-            <p className="hero-description">We'll take care of everything else right here at CinemaWorld!</p>
-            <div className="hero-ctas">
-              <a className="primary-button" href="#movies">Explore movies <ArrowRight /></a>
+        {activeTab === "Now showing" && (
+          <section className="hero" id="home" aria-labelledby="hero-title">
+            <div className="hero-trailer" aria-hidden="true">
+              <iframe
+                src="https://www.youtube-nocookie.com/embed/8TZMtslA3UY?autoplay=1&mute=1&enablejsapi=1&controls=0&loop=1&playlist=8TZMtslA3UY&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&disablekb=1&fs=0"
+                title="Spider-Man: Brand New Day official trailer"
+                allow="autoplay; encrypted-media; picture-in-picture"
+                tabIndex={-1}
+                onLoad={(event) => {
+                  const frame = event.currentTarget;
+                  frame.contentWindow?.postMessage(
+                    JSON.stringify({ event: "command", func: "mute", args: [] }),
+                    "https://www.youtube-nocookie.com",
+                  );
+                  window.setTimeout(() => {
+                    frame.contentWindow?.postMessage(
+                      JSON.stringify({ event: "command", func: "playVideo", args: [] }),
+                      "https://www.youtube-nocookie.com",
+                    );
+                  }, 300);
+                }}
+              />
             </div>
-            <div className="hero-note"><ShieldCheck size={14} /> Secure checkout · Mobile tickets accepted</div>
-          </div>
-          <div className="hero-art" aria-label={`Featured film: ${activeHeroMovie.title}`}>
-            <span className="orbit-dot orbit-dot-one" />
-            <span className="orbit-dot orbit-dot-two" />
-            <span className="orbit-dot orbit-dot-three" />
-            <div className="hero-poster" key={activeHeroMovie.id} style={posterStyle(activeHeroMovie)}>
-              <div className="hero-poster-content">
-                <span className="poster-kicker"><Film size={11} /> Featured film</span>
-                <h2>{activeHeroMovie.shortTitle}</h2>
-                <p>Only in cinemas · {activeHeroMovie.status}</p>
+            <div className="hero-copy">
+              <h1 className="hero-title" id="hero-title"><span>Cherish Movie Moments With Friends and Family!</span></h1>
+              <p className="hero-description">We&apos;ll take care of everything else right here at CinemaWorld!</p>
+              <div className="hero-ctas">
+                <a className="primary-button" href="#movies">Explore movies <ArrowRight /></a>
               </div>
+              <div className="hero-note"><ShieldCheck size={14} /> Secure checkout · Mobile tickets accepted</div>
             </div>
-            <div className="hero-label">Top Trending Movie</div>
-          </div>
-        </section>
+          </section>
+        )}
 
         <section className="movie-section" id="movies" aria-labelledby="movies-heading">
           <div className="section-topline">
             <div>
-              <h2 className="section-heading" id="movies-heading">Movies</h2>
-              <p className="section-description">All the movies we currently offer just for you!</p>
-            </div>
-            <div className="catalog-controls">
-              <div className="catalog-tabs" role="tablist" aria-label="Movie categories">
-                {tabs.map((tab) => {
-                  const tabId = `tab-${tab.toLowerCase().replaceAll(" ", "-")}`;
-                  return (
-                    <button className="catalog-tab" id={tabId} key={tab} type="button" role="tab" aria-selected={activeTab === tab} onClick={() => setActiveTab(tab)}>
-                      {tab}
-                    </button>
-                  );
-                })}
-              </div>
+              <h2 className="section-heading" id="movies-heading">{activeTab}</h2>
+              <p className="section-description">
+                {activeTab === "Now showing"
+                  ? "All the movies currently showing just for you!"
+                  : activeTab === "Coming soon"
+                    ? "Discover movies arriving soon at CinemaWorld."
+                    : "Reserve your seats early for upcoming releases."}
+              </p>
             </div>
           </div>
 
-          <div className="movie-grid" role="tabpanel" aria-labelledby={activeTabId}>
+          <div className="movie-grid" aria-label={`${activeTab} movies`}>
             {visibleMovies.map((movie) => (
               <button className="movie-card" key={movie.id} type="button" onClick={() => openMovie(movie)}>
                 <span className={`movie-poster${movie.monochrome ? " movie-poster--monochrome" : ""}`} style={posterStyle(movie)}>
@@ -1003,6 +1016,10 @@ export default function CinemaWorld() {
 
       <footer className="site-footer">
         <span className="footer-brand"><img src="." /> CinemaWorld</span>
+        <nav className="footer-module-links" aria-label="Module links">
+          <a href="/now-showing">User module</a>
+          <a href="/admin">Admin module</a>
+        </nav>
         <span>© 2026 CinemaWorld Cinemas</span>
       </footer>
 
@@ -1215,12 +1232,12 @@ export default function CinemaWorld() {
                               {selectedPaymentMethod === "GCash" ? (
                                 <>
                                   <p><span>Account Name</span><strong>CinemaWorld Philippines</strong></p>
-                                  <p><span>GCash Number</span><strong>0917 842 9910</strong></p>
+                                  <p><span>Payment Option</span><strong>GCash checkout demo</strong></p>
                                 </>
                               ) : selectedPaymentMethod === "Maya" ? (
                                 <>
                                   <p><span>Account Name</span><strong>CinemaWorld Philippines</strong></p>
-                                  <p><span>Maya Number</span><strong>0918 553 7420</strong></p>
+                                  <p><span>Payment Option</span><strong>Maya checkout demo</strong></p>
                                 </>
                               ) : (
                                 <>
