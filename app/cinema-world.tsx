@@ -355,7 +355,6 @@ const releaseDates: Record<string, string> = {
   "street-fighter": "October 16, 2026",
   hexed: "November 25, 2026",
 };
-const featuredMovies = movies.filter((movie) => movie.status === "Now showing");
 const screeningFormats = [
   {
     id: "2d",
@@ -455,7 +454,6 @@ function posterStyle(movie: Movie): PosterStyle {
 
 export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab?: MovieTab }) {
   const activeTab = initialTab;
-  const [heroMovieIndex, setHeroMovieIndex] = useState(0);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingStep, setBookingStep] = useState<"selection" | "review" | "notice" | "confirmed">("selection");
@@ -526,8 +524,6 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
           : dates.map(dateKey),
   );
   const visibleMovies = movies.filter((movie) => movie.status === activeTab);
-  const featuredMovie = movies[0];
-  const activeHeroMovie = featuredMovies[heroMovieIndex];
   const selectedFormatDetails = screeningFormatDetails[selectedFormat];
   const bookingSeatRows = Array.from({ length: selectedFormatDetails.rows }, (_, rowIndex) => String.fromCharCode(65 + rowIndex));
   const halfSeatCount = selectedFormatDetails.seatsPerRow / 2;
@@ -552,13 +548,6 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
       && hasPaymentDetails,
   );
   const bookingStepNumber = bookingStep === "selection" ? 1 : bookingStep === "review" ? 2 : 3;
-
-  useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      setHeroMovieIndex((index) => (index + 1) % featuredMovies.length);
-    }, 4000);
-    return () => window.clearInterval(intervalId);
-  }, []);
 
   useEffect(() => {
     if (!supabase) return;
@@ -937,19 +926,6 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
               <a className="primary-button" href="#movies">Explore movies <ArrowRight /></a>
             </div>
             <div className="hero-note"><ShieldCheck size={14} /> Secure checkout · Mobile tickets accepted</div>
-          </div>
-          <div className="hero-art" aria-label={`Featured film: ${activeHeroMovie.title}`}>
-            <span className="orbit-dot orbit-dot-one" />
-            <span className="orbit-dot orbit-dot-two" />
-            <span className="orbit-dot orbit-dot-three" />
-            <div className="hero-poster" key={activeHeroMovie.id} style={posterStyle(activeHeroMovie)}>
-              <div className="hero-poster-content">
-                <span className="poster-kicker"><Film size={11} /> Featured film</span>
-                <h2>{activeHeroMovie.shortTitle}</h2>
-                <p>Only in cinemas · {activeHeroMovie.status}</p>
-              </div>
-            </div>
-            <div className="hero-label">Top Trending Movie</div>
           </div>
         </section>
 
