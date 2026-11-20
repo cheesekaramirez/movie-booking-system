@@ -338,7 +338,6 @@ const movies: Movie[] = [
   },
 ];
 
-const tabs: MovieTab[] = ["Now showing", "Coming soon", "Advance booking"];
 const releaseDates: Record<string, string> = {
   "spider-man": "July 31, 2026",
   odyssey: "July 17, 2026",
@@ -454,8 +453,8 @@ function posterStyle(movie: Movie): PosterStyle {
   };
 }
 
-export default function CinemaWorld() {
-  const [activeTab, setActiveTab] = useState<MovieTab>("Now showing");
+export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab?: MovieTab }) {
+  const activeTab = initialTab;
   const [heroMovieIndex, setHeroMovieIndex] = useState(0);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [bookingOpen, setBookingOpen] = useState(false);
@@ -895,8 +894,6 @@ export default function CinemaWorld() {
       </div>
     </div>
   );
-  const activeTabId = `tab-${activeTab.toLowerCase().replaceAll(" ", "-")}`;
-
   return (
     <div className="site-shell">
       <header className="site-header">
@@ -905,9 +902,9 @@ export default function CinemaWorld() {
           <span>CinemaWorld</span>
         </a>
         <nav className="main-nav" aria-label="Main navigation">
-          <a href="#movies" onClick={() => setActiveTab("Now showing")}>Now showing</a>
-          <a href="#movies" onClick={() => setActiveTab("Coming soon")}>Coming soon</a>
-          <a href="#movies" onClick={() => setActiveTab("Advance booking")}>Advance booking</a>
+          <a href="/now-showing" aria-current={activeTab === "Now showing" ? "page" : undefined}>Now showing</a>
+          <a href="/coming-soon" aria-current={activeTab === "Coming soon" ? "page" : undefined}>Coming soon</a>
+          <a href="/advance-booking" aria-current={activeTab === "Advance booking" ? "page" : undefined}>Advance booking</a>
         </nav>
         <div className="header-actions">
           <span className="header-location"><MapPin size={13} /> Manila, PH</span>
@@ -935,7 +932,7 @@ export default function CinemaWorld() {
           </div>
           <div className="hero-copy">
             <h1 className="hero-title" id="hero-title"><span>Cherish Movie Moments With Friends and Family!</span></h1>
-            <p className="hero-description">We'll take care of everything else right here at CinemaWorld!</p>
+            <p className="hero-description">We&apos;ll take care of everything else right here at CinemaWorld!</p>
             <div className="hero-ctas">
               <a className="primary-button" href="#movies">Explore movies <ArrowRight /></a>
             </div>
@@ -959,24 +956,18 @@ export default function CinemaWorld() {
         <section className="movie-section" id="movies" aria-labelledby="movies-heading">
           <div className="section-topline">
             <div>
-              <h2 className="section-heading" id="movies-heading">Movies</h2>
-              <p className="section-description">All the movies we currently offer just for you!</p>
-            </div>
-            <div className="catalog-controls">
-              <div className="catalog-tabs" role="tablist" aria-label="Movie categories">
-                {tabs.map((tab) => {
-                  const tabId = `tab-${tab.toLowerCase().replaceAll(" ", "-")}`;
-                  return (
-                    <button className="catalog-tab" id={tabId} key={tab} type="button" role="tab" aria-selected={activeTab === tab} onClick={() => setActiveTab(tab)}>
-                      {tab}
-                    </button>
-                  );
-                })}
-              </div>
+              <h2 className="section-heading" id="movies-heading">{activeTab}</h2>
+              <p className="section-description">
+                {activeTab === "Now showing"
+                  ? "All the movies currently showing just for you!"
+                  : activeTab === "Coming soon"
+                    ? "Discover movies arriving soon at CinemaWorld."
+                    : "Reserve your seats early for upcoming releases."}
+              </p>
             </div>
           </div>
 
-          <div className="movie-grid" role="tabpanel" aria-labelledby={activeTabId}>
+          <div className="movie-grid" aria-label={`${activeTab} movies`}>
             {visibleMovies.map((movie) => (
               <button className="movie-card" key={movie.id} type="button" onClick={() => openMovie(movie)}>
                 <span className={`movie-poster${movie.monochrome ? " movie-poster--monochrome" : ""}`} style={posterStyle(movie)}>
