@@ -1,9 +1,8 @@
 "use client";
 
 import { ArrowLeft, CalendarDays, Film, RefreshCw, Ticket, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { supabase } from "../supabase";
 
 type Booking = {
   id: string;
@@ -17,6 +16,12 @@ type Booking = {
   created_at: string;
 };
 
+const demoBookings: Booking[] = [
+  { id: "cw-1048", movie_title: "Spider-Man: Brand New Day", show_date: "2026-07-31", show_time: "7:00 PM", seats: ["F6", "F7"], contact_name: "Mia Santos", contact_email: "mia@example.com", total_amount: 760, created_at: "2026-06-20" },
+  { id: "cw-1047", movie_title: "The Odyssey", show_date: "2026-07-17", show_time: "3:30 PM", seats: ["C4"], contact_name: "Daniel Cruz", contact_email: "daniel@example.com", total_amount: 850, created_at: "2026-06-19" },
+  { id: "cw-1046", movie_title: "Toy Story 5", show_date: "2026-06-19", show_time: "1:15 PM", seats: ["B2", "B3", "B4"], contact_name: "Lara Reyes", contact_email: "lara@example.com", total_amount: 1140, created_at: "2026-06-18" },
+];
+
 const movieSummary = [
   { label: "Total movie listings", value: "15", detail: "Across all categories", icon: Film },
   { label: "Now showing", value: "5", detail: "Available to book today", icon: Ticket },
@@ -25,40 +30,16 @@ const movieSummary = [
 ];
 
 export default function AdminPage() {
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
+  const [bookings, setBookings] = useState<Booking[]>(demoBookings);
+  const [loading, setLoading] = useState(false);
 
-  async function loadBookings() {
+  function refreshBookings() {
     setLoading(true);
-    setMessage("");
-
-    if (!supabase) {
+    window.setTimeout(() => {
+      setBookings(demoBookings);
       setLoading(false);
-      setMessage("Connect Supabase to load live reservations. The dashboard is ready for local preview.");
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("bookings")
-      .select("id, movie_title, show_date, show_time, seats, contact_name, contact_email, total_amount, created_at")
-      .order("created_at", { ascending: false })
-      .limit(8);
-
-    if (error) {
-      setLoading(false);
-      setMessage("Reservations could not be loaded. Check your admin account and database permissions.");
-      return;
-    }
-
-    setBookings((data ?? []) as Booking[]);
-    setLoading(false);
+    }, 350);
   }
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => void loadBookings(), 0);
-    return () => window.clearTimeout(timer);
-  }, []);
 
   return (
     <main className="admin-shell">
@@ -69,7 +50,7 @@ export default function AdminPage() {
           <h1>Admin dashboard</h1>
           <p className="admin-intro">Monitor movie listings, cinema locations, and recent reservations from one place.</p>
         </div>
-        <button className="admin-refresh-button" type="button" onClick={() => void loadBookings()} disabled={loading}>
+        <button className="admin-refresh-button" type="button" onClick={refreshBookings} disabled={loading}>
           <RefreshCw size={15} /> {loading ? "Refreshing..." : "Refresh"}
         </button>
       </header>
@@ -91,11 +72,10 @@ export default function AdminPage() {
             <p className="section-kicker">Bookings</p>
             <h2>Recent reservations</h2>
           </div>
-          <span className="admin-live-badge">Live data</span>
+          <span className="admin-live-badge">Demo data</span>
         </div>
-        {message && <p className="admin-message" role="status">{message}</p>}
         {loading ? (
-          <p className="admin-empty-state">Loading reservations...</p>
+          <p className="admin-empty-state">Refreshing reservations...</p>
         ) : bookings.length === 0 ? (
           <p className="admin-empty-state">No reservations are available yet.</p>
         ) : (
