@@ -679,6 +679,37 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
     setBookingBusy(true);
     setBookingError("");
 
+    const referenceNumber = Math.floor(1000 + Math.random() * 9000);
+    const bookingCodeValue = `CW-${selectedDate.slice(0, 4)}-${referenceNumber}`;
+    const reservationRecord = {
+      id: bookingCodeValue,
+      movie_title: selectedMovie.title,
+      show_date: selectedDate,
+      show_time: selectedTime,
+      seats: selectedSeats,
+      contact_name: contactName,
+      contact_email: contactEmail,
+      contact_number: contactNumber,
+      cinema: selectedCinema,
+      format: selectedFormat,
+      payment_method: selectedPaymentMethod,
+      total_amount: selectedSeats.length * selectedFormatDetails.price,
+      created_at: new Date().toISOString(),
+      status: "New",
+    };
+
+    const storedReservations = JSON.parse(
+      window.localStorage.getItem("cinemaWorldReservations") ?? "[]",
+    ) as typeof reservationRecord[];
+    window.localStorage.setItem(
+      "cinemaWorldReservations",
+      JSON.stringify([reservationRecord, ...storedReservations].slice(0, 100)),
+    );
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: "cinemaWorldReservations",
+      newValue: JSON.stringify([reservationRecord, ...storedReservations].slice(0, 100)),
+    }));
+
     if (supabase) {
       const { data } = await supabase.auth.getUser();
       const { error } = await supabase.from("bookings").insert({
@@ -698,8 +729,7 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
       }
     }
 
-    const referenceNumber = Math.floor(1000 + Math.random() * 9000);
-    setBookingCode(`CW-${selectedDate.slice(0, 4)}-${referenceNumber}`);
+    setBookingCode(bookingCodeValue);
     setBookingBusy(false);
     setBookingStep("confirmed");
   }
@@ -897,6 +927,7 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
         </nav>
         <div className="header-actions">
           <span className="header-location"><MapPin size={13} /> Manila, PH</span>
+          <a className="text-button" href="/admin">Admin</a>
           {userEmail ? (
             <button className="text-button" type="button" onClick={() => void signOut()} title={`Sign out ${userEmail}`}>
               <UserRound size={15} /> Sign out
