@@ -339,6 +339,23 @@ const movies: Movie[] = [
 ];
 
 const tabs: MovieTab[] = ["Now showing", "Coming soon", "Advance booking"];
+const releaseDates: Record<string, string> = {
+  "spider-man": "July 31, 2026",
+  odyssey: "July 17, 2026",
+  "toy-story-5": "June 19, 2026",
+  minions: "July 1, 2026",
+  insidious: "August 21, 2026",
+  "resident-evil": "September 18, 2026",
+  "avengers-encore": "April 24, 2026",
+  "hunger-games": "November 20, 2026",
+  "dune-three": "December 18, 2026",
+  "avengers-doomsday": "December 18, 2026",
+  runner: "September 11, 2026",
+  "forgotten-island": "October 9, 2026",
+  digger: "October 2, 2026",
+  "street-fighter": "October 16, 2026",
+  hexed: "November 25, 2026",
+};
 const featuredMovies = movies.filter((movie) => movie.status === "Now showing");
 const screeningFormats = [
   {
@@ -999,7 +1016,7 @@ export default function CinemaWorld() {
             <div className="dialog-body movie-dialog-content">
               <div className={`detail-poster${selectedMovie.monochrome ? " detail-poster--monochrome" : ""}`} style={posterStyle(selectedMovie)}><span>{selectedMovie.shortTitle}</span></div>
               <div className="detail-copy">
-                <div className="detail-meta"><span>{selectedMovie.rating}</span><span>{selectedMovie.duration}</span>{selectedMovie.genres.map((genre) => <span key={genre}>{genre}</span>)}</div>
+                <div className="detail-meta"><span>{selectedMovie.rating}</span><span>{selectedMovie.duration}</span><span>Release: {releaseDates[selectedMovie.id]}</span>{selectedMovie.genres.map((genre) => <span key={genre}>{genre}</span>)}</div>
                 <p>{selectedMovie.synopsis}</p>
                 <p className="detail-credit"><span className="notice-emphasis">Director:</span> {selectedMovie.director}</p>
                 <p className="detail-credit"><span className="notice-emphasis">Cast:</span> {selectedMovie.cast}</p>
