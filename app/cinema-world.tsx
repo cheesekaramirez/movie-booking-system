@@ -913,10 +913,21 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
         <section className="hero" id="home" aria-labelledby="hero-title">
           <div className="hero-trailer" aria-hidden="true">
             <iframe
-              src="https://www.youtube.com/embed/8TZMtslA3UY?autoplay=1&mute=1&controls=0&loop=1&playlist=8TZMtslA3UY&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3"
+              src="https://www.youtube-nocookie.com/embed/8TZMtslA3UY?autoplay=1&mute=1&enablejsapi=1&controls=0&loop=1&playlist=8TZMtslA3UY&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&disablekb=1&fs=0"
               title="Spider-Man: Brand New Day official trailer"
-              allow="autoplay; encrypted-media"
+              allow="autoplay; encrypted-media; picture-in-picture"
               tabIndex={-1}
+              onLoad={(event) => {
+                const frame = event.currentTarget;
+                const sendCommand = (command: "mute" | "playVideo") => {
+                  frame.contentWindow?.postMessage(
+                    JSON.stringify({ event: "command", func: command, args: [] }),
+                    "https://www.youtube-nocookie.com",
+                  );
+                };
+                sendCommand("mute");
+                window.setTimeout(() => sendCommand("playVideo"), 300);
+              }}
             />
           </div>
           <div className="hero-copy">
