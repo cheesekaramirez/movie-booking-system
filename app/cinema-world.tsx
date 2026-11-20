@@ -908,6 +908,14 @@ export default function CinemaWorld() {
 
       <main>
         <section className="hero" id="home" aria-labelledby="hero-title">
+          <div className="hero-trailer" aria-hidden="true">
+            <iframe
+              src="https://www.youtube.com/embed/8TZMtslA3UY?autoplay=1&mute=1&controls=0&loop=1&playlist=8TZMtslA3UY&modestbranding=1&rel=0"
+              title="Spider-Man: Brand New Day official trailer"
+              allow="autoplay; encrypted-media"
+              tabIndex={-1}
+            />
+          </div>
           <div className="hero-copy">
             <h1 className="hero-title" id="hero-title"><span>Cherish Movie Moments With Friends and Family!</span></h1>
             <p className="hero-description">We'll take care of everything else right here at CinemaWorld!</p>
