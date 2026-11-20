@@ -910,35 +910,39 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
       </header>
 
       <main>
-        <section className="hero" id="home" aria-labelledby="hero-title">
-          <div className="hero-trailer" aria-hidden="true">
-            <iframe
-              src="https://www.youtube-nocookie.com/embed/8TZMtslA3UY?autoplay=1&mute=1&enablejsapi=1&controls=0&loop=1&playlist=8TZMtslA3UY&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&disablekb=1&fs=0"
-              title="Spider-Man: Brand New Day official trailer"
-              allow="autoplay; encrypted-media; picture-in-picture"
-              tabIndex={-1}
-              onLoad={(event) => {
-                const frame = event.currentTarget;
-                const sendCommand = (command: "mute" | "playVideo") => {
+        {activeTab === "Now showing" && (
+          <section className="hero" id="home" aria-labelledby="hero-title">
+            <div className="hero-trailer" aria-hidden="true">
+              <iframe
+                src="https://www.youtube-nocookie.com/embed/8TZMtslA3UY?autoplay=1&mute=1&enablejsapi=1&controls=0&loop=1&playlist=8TZMtslA3UY&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&disablekb=1&fs=0"
+                title="Spider-Man: Brand New Day official trailer"
+                allow="autoplay; encrypted-media; picture-in-picture"
+                tabIndex={-1}
+                onLoad={(event) => {
+                  const frame = event.currentTarget;
                   frame.contentWindow?.postMessage(
-                    JSON.stringify({ event: "command", func: command, args: [] }),
+                    JSON.stringify({ event: "command", func: "mute", args: [] }),
                     "https://www.youtube-nocookie.com",
                   );
-                };
-                sendCommand("mute");
-                window.setTimeout(() => sendCommand("playVideo"), 300);
-              }}
-            />
-          </div>
-          <div className="hero-copy">
-            <h1 className="hero-title" id="hero-title"><span>Cherish Movie Moments With Friends and Family!</span></h1>
-            <p className="hero-description">We&apos;ll take care of everything else right here at CinemaWorld!</p>
-            <div className="hero-ctas">
-              <a className="primary-button" href="#movies">Explore movies <ArrowRight /></a>
+                  window.setTimeout(() => {
+                    frame.contentWindow?.postMessage(
+                      JSON.stringify({ event: "command", func: "playVideo", args: [] }),
+                      "https://www.youtube-nocookie.com",
+                    );
+                  }, 300);
+                }}
+              />
             </div>
-            <div className="hero-note"><ShieldCheck size={14} /> Secure checkout · Mobile tickets accepted</div>
-          </div>
-        </section>
+            <div className="hero-copy">
+              <h1 className="hero-title" id="hero-title"><span>Cherish Movie Moments With Friends and Family!</span></h1>
+              <p className="hero-description">We&apos;ll take care of everything else right here at CinemaWorld!</p>
+              <div className="hero-ctas">
+                <a className="primary-button" href="#movies">Explore movies <ArrowRight /></a>
+              </div>
+              <div className="hero-note"><ShieldCheck size={14} /> Secure checkout · Mobile tickets accepted</div>
+            </div>
+          </section>
+        )}
 
         <section className="movie-section" id="movies" aria-labelledby="movies-heading">
           <div className="section-topline">
