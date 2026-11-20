@@ -1016,6 +1016,10 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
 
       <footer className="site-footer">
         <span className="footer-brand"><img src="." /> CinemaWorld</span>
+        <nav className="footer-module-links" aria-label="Module links">
+          <a href="/now-showing">User module</a>
+          <a href="/admin">Admin module</a>
+        </nav>
         <span>© 2026 CinemaWorld Cinemas</span>
       </footer>
 
@@ -1228,12 +1232,12 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
                               {selectedPaymentMethod === "GCash" ? (
                                 <>
                                   <p><span>Account Name</span><strong>CinemaWorld Philippines</strong></p>
-                                  <p><span>GCash Number</span><strong>0917 842 9910</strong></p>
+                                  <p><span>Payment Option</span><strong>GCash checkout demo</strong></p>
                                 </>
                               ) : selectedPaymentMethod === "Maya" ? (
                                 <>
                                   <p><span>Account Name</span><strong>CinemaWorld Philippines</strong></p>
-                                  <p><span>Maya Number</span><strong>0918 553 7420</strong></p>
+                                  <p><span>Payment Option</span><strong>Maya checkout demo</strong></p>
                                 </>
                               ) : (
                                 <>
