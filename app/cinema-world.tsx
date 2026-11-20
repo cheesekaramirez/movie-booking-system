@@ -3,6 +3,7 @@
 import {
   ArrowLeft,
   ArrowRight,
+  ArrowUpRight,
   CalendarDays,
   Check,
   ChevronDown,
