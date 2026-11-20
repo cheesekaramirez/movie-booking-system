@@ -3,7 +3,6 @@
 import {
   ArrowLeft,
   ArrowRight,
-  ArrowUpRight,
   CalendarDays,
   Check,
   ChevronDown,
@@ -1138,9 +1137,6 @@ export default function CinemaWorld() {
                 <p>{selectedMovie.synopsis}</p>
                 <p className="detail-credit"><span className="notice-emphasis">Director:</span> {selectedMovie.director}</p>
                 <p className="detail-credit"><span className="notice-emphasis">Cast:</span> {selectedMovie.cast}</p>
-                <a className="detail-source" href={selectedMovie.sourceUrl} target="_blank" rel="noreferrer">
-                  Film details &amp; poster source <ArrowUpRight size={12} />
-                </a>
                 <div className="format-strip detail-formats">{selectedMovie.formats.map((format) => <span className="format-chip" key={format}>{format}</span>)}</div>
                 <button className="primary-button" type="button" onClick={() => openBooking(selectedMovie)}>
                   {selectedMovie.status === "Coming soon" ? <Film size={15} /> : <Ticket size={15} />}
