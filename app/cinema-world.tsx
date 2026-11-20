@@ -507,12 +507,10 @@ export default function CinemaWorld() {
       <main>
         <section className="hero" id="home" aria-labelledby="hero-title">
           <div className="hero-copy">
-            <p className="eyebrow"><span className="eyebrow-dot" /> Your seat is waiting</p>
-            <h1 className="hero-title" id="hero-title"><span>Book tickets</span><span>now!</span></h1>
-            <p className="hero-description">Big-screen stories, a seat with your name on it, and a night worth getting out for. Find your next movie at CinemaWorld.</p>
+            <h1 className="hero-title" id="hero-title"><span>Cherish Movie Moments With Friends and Family!</span></h1>
+            <p className="hero-description">We'll take care of everything else right here at CinemaWorld!</p>
             <div className="hero-ctas">
               <a className="primary-button" href="#movies">Explore movies <ArrowRight /></a>
-              <button className="outline-button" type="button" onClick={() => openBooking(featuredMovie)}><Ticket size={15} /> Book Spider-Man</button>
             </div>
             <div className="hero-note"><ShieldCheck size={14} /> Secure checkout · Mobile tickets accepted</div>
           </div>
@@ -527,16 +525,15 @@ export default function CinemaWorld() {
                 <p>Only in cinemas · Now showing</p>
               </div>
             </div>
-            <div className="hero-label">A better night at the movies</div>
+            <div className="hero-label">Top Trending Movie</div>
           </div>
         </section>
 
         <section className="movie-section" id="movies" aria-labelledby="movies-heading">
           <div className="section-topline">
             <div>
-              <p className="section-kicker">The big-screen lineup</p>
-              <h2 className="section-heading" id="movies-heading">Find your next favorite</h2>
-              <p className="section-description">Choose a story. Pick your seats. We’ll take it from there.</p>
+              <h2 className="section-heading" id="movies-heading">Movies</h2>
+              <p className="section-description">All the movies we currently offer just for you!</p>
             </div>
             <div className="catalog-controls">
               <div className="catalog-tabs" role="tablist" aria-label="Movie categories">
@@ -581,8 +578,7 @@ export default function CinemaWorld() {
       </main>
 
       <footer className="site-footer">
-        <span className="footer-brand"><span className="footer-mark">C</span> CinemaWorld</span>
-        <span>Good stories. Great company. See you at the movies.</span>
+        <span className="footer-brand"><img src="." /> CinemaWorld</span>
         <span>© 2026 CinemaWorld Cinemas</span>
       </footer>
 
