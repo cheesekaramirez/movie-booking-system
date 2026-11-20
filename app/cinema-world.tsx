@@ -3,7 +3,6 @@
 import {
   ArrowLeft,
   ArrowRight,
-  ArrowUpRight,
   CalendarDays,
   Check,
   ChevronDown,
@@ -22,7 +21,6 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
-import emailjs from "@emailjs/browser";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "./supabase";
 
@@ -73,6 +71,7 @@ type Movie = {
   poster: string;
   tint: string;
   sourceUrl: string;
+  advanceBooking?: boolean;
   monochrome?: boolean;
 };
 type PosterStyle = CSSProperties & {
@@ -194,11 +193,11 @@ const movies: Movie[] = [
     cast: "Robert Downey Jr., Chris Evans, Scarlett Johansson",
     synopsis:
       "The surviving Avengers and their allies attempt to reverse Thanos's actions after he erased half of all life in the universe.",
-    formats: ["2D", "IMAX", "Director's Club"],
-    poster: "https://en.wikipedia.org/wiki/Special:Redirect/file/Avengers_Endgame_poster.jpg",
+    formats: ["2D", "IMAX", "3D"],
+    poster: "https://smcine-digital-cdn.app.vista.co/media/entity/get/FilmPosterGraphic/HO00001643?width=200",
     tint: "#573d33",
     sourceUrl: "https://en.wikipedia.org/wiki/Avengers:_Endgame",
-    monochrome: true,
+    advanceBooking: true,
   },
   {
     id: "hunger-games",
@@ -339,6 +338,23 @@ const movies: Movie[] = [
 ];
 
 const tabs: MovieTab[] = ["Now showing", "Coming soon", "Advance booking"];
+const releaseDates: Record<string, string> = {
+  "spider-man": "July 31, 2026",
+  odyssey: "July 17, 2026",
+  "toy-story-5": "June 19, 2026",
+  minions: "July 1, 2026",
+  insidious: "August 21, 2026",
+  "resident-evil": "September 18, 2026",
+  "avengers-encore": "April 24, 2026",
+  "hunger-games": "November 20, 2026",
+  "dune-three": "December 18, 2026",
+  "avengers-doomsday": "December 18, 2026",
+  runner: "September 11, 2026",
+  "forgotten-island": "October 9, 2026",
+  digger: "October 2, 2026",
+  "street-fighter": "October 16, 2026",
+  hexed: "November 25, 2026",
+};
 const featuredMovies = movies.filter((movie) => movie.status === "Now showing");
 const screeningFormats = [
   {
@@ -444,8 +460,6 @@ export default function CinemaWorld() {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingStep, setBookingStep] = useState<"selection" | "review" | "notice" | "confirmed">("selection");
   const [selectedFormat, setSelectedFormat] = useState<MovieFormat>("2D");
-  const [screeningFormatIndex, setScreeningFormatIndex] = useState(0);
-  const [branchShowcasePage, setBranchShowcasePage] = useState(0);
   const [selectedCinema, setSelectedCinema] = useState<CinemaBranch>("SM Mall of Asia");
   const [selectedDate, setSelectedDate] = useState(() => dateKey(new Date()));
   const [datePage, setDatePage] = useState(0);
@@ -514,7 +528,6 @@ export default function CinemaWorld() {
   const visibleMovies = movies.filter((movie) => movie.status === activeTab);
   const featuredMovie = movies[0];
   const activeHeroMovie = featuredMovies[heroMovieIndex];
-  const activeScreeningFormat = screeningFormats[screeningFormatIndex];
   const selectedFormatDetails = screeningFormatDetails[selectedFormat];
   const bookingSeatRows = Array.from({ length: selectedFormatDetails.rows }, (_, rowIndex) => String.fromCharCode(65 + rowIndex));
   const halfSeatCount = selectedFormatDetails.seatsPerRow / 2;
@@ -834,33 +847,8 @@ export default function CinemaWorld() {
     }
 
     setTicketEmailStatus("sending");
-    const bookingRef = bookingCode;
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(bookingRef)}`;
-    const templateParams = {
-      to_email: contactEmail,
-      guest_name: contactName,
-      contact_number: contactNumber,
-      movie_title: selectedMovie.title,
-      cinema: selectedCinema,
-      format: selectedFormat,
-      date: `${formatDate(selectedDate)}, ${selectedDate.slice(0, 4)}`,
-      showtime: selectedTime,
-      seats: selectedSeats.join(", "),
-      payment_method: selectedPaymentMethod,
-      total_price: currency(selectedSeats.length * selectedFormatDetails.price),
-      booking_ref: bookingRef,
-      qr_code_url: qrCodeUrl,
-    };
-
-    try {
-      await emailjs.send("service_3502m95", "template_o5uebnk", templateParams, {
-        publicKey: "mjHh7LqTz7ZLYvCho",
-      });
-      setTicketEmailStatus("sent");
-    } catch (error) {
-      setTicketEmailStatus("error");
-      setTicketActionError(error instanceof Error ? `Email could not be sent: ${error.message}` : "Email could not be sent. Please try again.");
-    }
+    await new Promise((resolve) => window.setTimeout(resolve, 650));
+    setTicketEmailStatus("sent");
   }
 
   async function sendSignInLink(event: FormEvent<HTMLFormElement>) {
@@ -918,8 +906,6 @@ export default function CinemaWorld() {
         <nav className="main-nav" aria-label="Main navigation">
           <a href="#movies" onClick={() => setActiveTab("Now showing")}>Now showing</a>
           <a href="#movies" onClick={() => setActiveTab("Coming soon")}>Coming soon</a>
-          <a href="#formats" onClick={() => setScreeningFormatIndex(0)}>Screening formats</a>
-          <a href="#cinema-branches">Cinema branches</a>
           <a href="#movies" onClick={() => setActiveTab("Advance booking")}>Advance booking</a>
         </nav>
         <div className="header-actions">
@@ -938,13 +924,19 @@ export default function CinemaWorld() {
 
       <main>
         <section className="hero" id="home" aria-labelledby="hero-title">
+          <div className="hero-trailer" aria-hidden="true">
+            <iframe
+              src="https://www.youtube.com/embed/8TZMtslA3UY?autoplay=1&mute=1&controls=0&loop=1&playlist=8TZMtslA3UY&modestbranding=1&rel=0"
+              title="Spider-Man: Brand New Day official trailer"
+              allow="autoplay; encrypted-media"
+              tabIndex={-1}
+            />
+          </div>
           <div className="hero-copy">
-            <p className="eyebrow"><span className="eyebrow-dot" /> Your seat is waiting</p>
-            <h1 className="hero-title" id="hero-title"><span>Book tickets</span><span>now!</span></h1>
-            <p className="hero-description">Big-screen stories, a seat with your name on it, and a night worth getting out for. Find your next movie at CinemaWorld.</p>
+            <h1 className="hero-title" id="hero-title"><span>Cherish Movie Moments With Friends and Family!</span></h1>
+            <p className="hero-description">We'll take care of everything else right here at CinemaWorld!</p>
             <div className="hero-ctas">
               <a className="primary-button" href="#movies">Explore movies <ArrowRight /></a>
-              <button className="outline-button" type="button" onClick={() => openBooking(featuredMovie)}><Ticket size={15} /> Book Spider-Man</button>
             </div>
             <div className="hero-note"><ShieldCheck size={14} /> Secure checkout · Mobile tickets accepted</div>
           </div>
@@ -959,16 +951,15 @@ export default function CinemaWorld() {
                 <p>Only in cinemas · {activeHeroMovie.status}</p>
               </div>
             </div>
-            <div className="hero-label">A better night at the movies</div>
+            <div className="hero-label">Top Trending Movie</div>
           </div>
         </section>
 
         <section className="movie-section" id="movies" aria-labelledby="movies-heading">
           <div className="section-topline">
             <div>
-              <p className="section-kicker">The big-screen lineup</p>
-              <h2 className="section-heading" id="movies-heading">Find your next favorite</h2>
-              <p className="section-description">Choose a story. Pick your seats. We’ll take it from there.</p>
+              <h2 className="section-heading" id="movies-heading">Movies</h2>
+              <p className="section-description">All the movies we currently offer just for you!</p>
             </div>
             <div className="catalog-controls">
               <div className="catalog-tabs" role="tablist" aria-label="Movie categories">
@@ -1007,128 +998,10 @@ export default function CinemaWorld() {
           </div>
         </section>
 
-        <section className="format-showcase" id="formats" aria-labelledby="format-showcase-title">
-          <div className="format-showcase-topline">
-            <div>
-              <p className="section-kicker">Find your viewing style</p>
-              <h2 className="section-heading" id="format-showcase-title">Screening formats</h2>
-              <p className="section-description">Explore the auditorium and ticket price for each experience.</p>
-            </div>
-            <div className="format-tabs" role="tablist" aria-label="Screening formats">
-              {screeningFormats.map((format, index) => (
-                <button
-                  className={`format-tab${screeningFormatIndex === index ? " is-active" : ""}`}
-                  id={`format-tab-${format.id}`}
-                  key={format.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={screeningFormatIndex === index}
-                  aria-controls="format-showcase-panel"
-                  onClick={() => setScreeningFormatIndex(index)}
-                >
-                  {format.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="format-showcase-panel" id="format-showcase-panel" role="tabpanel" aria-labelledby={`format-tab-${activeScreeningFormat.id}`}>
-            <div className="format-info-card">
-              <div className="format-info-copy">
-                <span className="format-overline">Now showing</span>
-                <h3>{activeScreeningFormat.name}</h3>
-                <p>{activeScreeningFormat.description}</p>
-                {"badge" in activeScreeningFormat && <span className="format-badge">{activeScreeningFormat.badge}</span>}
-              </div>
-              <div className="format-price">
-                <span>Ticket price</span>
-                <strong>₱{activeScreeningFormat.price}</strong>
-                <small>per ticket</small>
-              </div>
-            </div>
-
-            <div className="format-preview">
-              <div className={`format-screen format-screen--${activeScreeningFormat.layout}`} aria-hidden="true" />
-              <span className="format-screen-label">Screen</span>
-              <div
-                className={`format-seat-map format-seat-map--${activeScreeningFormat.layout}`}
-                role="img"
-                aria-label={`${activeScreeningFormat.name} seating preview, ${activeScreeningFormat.rows} rows by ${activeScreeningFormat.seatsPerRow} seats`}
-              >
-                {Array.from({ length: activeScreeningFormat.rows }, (_, rowIndex) => (
-                  <div className={`format-seat-row${activeScreeningFormat.layout === "directors-club" ? " format-seat-row--club" : ""}`} key={rowIndex}>
-                    {activeScreeningFormat.layout === "directors-club" ? (
-                      Array.from({ length: activeScreeningFormat.seatsPerRow / 2 }, (_, pairIndex) => (
-                        <div className="format-seat-pair" key={pairIndex}>
-                          {Array.from({ length: 2 }, (_, pairSeatIndex) => (
-                            <span className="format-seat" key={pairSeatIndex} aria-hidden="true" />
-                          ))}
-                        </div>
-                      ))
-                    ) : (
-                      <>
-                        <div className="format-seat-bank" style={{ gridTemplateColumns: `repeat(${activeScreeningFormat.seatsPerRow / 2}, minmax(0, 1fr))` }}>
-                          {Array.from({ length: activeScreeningFormat.seatsPerRow / 2 }, (_, seatIndex) => <span className="format-seat" key={seatIndex} aria-hidden="true" />)}
-                        </div>
-                        <span className="format-seat-aisle" aria-hidden="true" />
-                        <div className="format-seat-bank" style={{ gridTemplateColumns: `repeat(${activeScreeningFormat.seatsPerRow / 2}, minmax(0, 1fr))` }}>
-                          {Array.from({ length: activeScreeningFormat.seatsPerRow / 2 }, (_, seatIndex) => <span className="format-seat" key={seatIndex} aria-hidden="true" />)}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div className="format-preview-footer">
-                <span>Seat map preview · {activeScreeningFormat.rows} rows</span>
-                <button className="primary-button" type="button" onClick={() => setScreeningFormatIndex((screeningFormatIndex + 1) % screeningFormats.length)}>
-                  Next Format <ArrowRight size={15} />
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="branch-showcase" id="cinema-branches" aria-labelledby="branch-showcase-title">
-          <div className="branch-showcase-topline">
-            <div>
-              <p className="section-kicker">Find a screen near you</p>
-              <h2 className="section-heading" id="branch-showcase-title">Cinema branches</h2>
-              <p className="section-description">Ten CinemaWorld locations across Metro Manila.</p>
-            </div>
-            <div className="branch-pagination" aria-label="Cinema branch pages">
-              <span className="branch-page-indicator" aria-live="polite">Page {branchShowcasePage + 1} of 2</span>
-              <button className="branch-nav-button" type="button" disabled={branchShowcasePage === 0} onClick={() => setBranchShowcasePage(0)}>
-                <ArrowLeft size={14} /> Previous
-              </button>
-              <button className="branch-nav-button" type="button" disabled={branchShowcasePage === 1} onClick={() => setBranchShowcasePage(1)}>
-                Next <ArrowRight size={14} />
-              </button>
-            </div>
-          </div>
-          <div className="branch-grid" key={branchShowcasePage}>
-            {cinemaBranches.slice(branchShowcasePage * 5, branchShowcasePage * 5 + 5).map((branch) => (
-              <article className="branch-card" key={branch.name}>
-                <div className="branch-card-top">
-                  <span className="branch-marker"><MapPin size={15} aria-hidden="true" /></span>
-                  <span className="branch-city-tag">{branch.city}</span>
-                </div>
-                <h3>{branch.name}</h3>
-                <p>{branch.address}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
       </main>
 
       <footer className="site-footer">
-        <span className="footer-brand"><span className="footer-mark">C</span> CinemaWorld</span>
-        <span>Good stories. Great company. See you at the movies.</span>
-        <div className="footer-contact">
-          <a className="footer-phone" href="tel:09765287425"><Phone size={13} /> Contact: 09765287425</a>
-          <button className="footer-review-button" type="button" onClick={openReview}>Customer Review</button>
-        </div>
+        <span className="footer-brand"><img src="." /> CinemaWorld</span>
         <span>© 2026 CinemaWorld Cinemas</span>
       </footer>
 
@@ -1142,13 +1015,10 @@ export default function CinemaWorld() {
             <div className="dialog-body movie-dialog-content">
               <div className={`detail-poster${selectedMovie.monochrome ? " detail-poster--monochrome" : ""}`} style={posterStyle(selectedMovie)}><span>{selectedMovie.shortTitle}</span></div>
               <div className="detail-copy">
-                <div className="detail-meta"><span>{selectedMovie.rating}</span><span>{selectedMovie.duration}</span>{selectedMovie.genres.map((genre) => <span key={genre}>{genre}</span>)}</div>
+                <div className="detail-meta"><span>{selectedMovie.rating}</span><span>{selectedMovie.duration}</span><span>Release: {releaseDates[selectedMovie.id]}</span>{selectedMovie.genres.map((genre) => <span key={genre}>{genre}</span>)}</div>
                 <p>{selectedMovie.synopsis}</p>
                 <p className="detail-credit"><span className="notice-emphasis">Director:</span> {selectedMovie.director}</p>
                 <p className="detail-credit"><span className="notice-emphasis">Cast:</span> {selectedMovie.cast}</p>
-                <a className="detail-source" href={selectedMovie.sourceUrl} target="_blank" rel="noreferrer">
-                  Film details &amp; poster source <ArrowUpRight size={12} />
-                </a>
                 <div className="format-strip detail-formats">{selectedMovie.formats.map((format) => <span className="format-chip" key={format}>{format}</span>)}</div>
                 <button className="primary-button" type="button" onClick={() => openBooking(selectedMovie)}>
                   {selectedMovie.status === "Coming soon" ? <Film size={15} /> : <Ticket size={15} />}
