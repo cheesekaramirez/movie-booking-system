@@ -72,6 +72,7 @@ type Movie = {
   poster: string;
   tint: string;
   sourceUrl: string;
+  advanceBooking?: boolean;
   monochrome?: boolean;
 };
 type PosterStyle = CSSProperties & {
