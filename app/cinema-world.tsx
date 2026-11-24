@@ -1,5 +1,6 @@
 "use client";
 
+import emailjs from "@emailjs/browser";
 import {
   ArrowLeft,
   ArrowRight,
@@ -22,26 +23,48 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import NextImage from "next/image";
 import { QRCodeSVG } from "qrcode.react";
+import { useRouter } from "next/navigation";
 import { supabase } from "./supabase";
 
 type MovieTab = "Now showing" | "Coming soon" | "Advance booking";
 type MovieFormat = "2D" | "3D" | "IMAX" | "Director's Club";
+const adminSessionStorageKey = "cinemaWorldAdminAuthenticated";
+const demoAdminEmail = "adminsystem@gmail.com";
+const demoAdminPassword = "movieadmin10";
 const cinemaBranches = [
   { name: "SM Mall of Asia", city: "Pasay City", address: "Seaside Blvd, Mall of Asia Complex, Pasay City" },
-  { name: "SM Megamall", city: "Mandaluyong City", address: "EDSA cor. Doña Julia Vargas Ave., Ortigas Center, Mandaluyong City" },
-  { name: "SM North EDSA", city: "Quezon City", address: "North Ave. cor. EDSA, Bagong Pag-asa, Quezon City" },
-  { name: "SM Fairview", city: "Quezon City", address: "Quirino Highway cor. Regalado Ave., Greater Lagro, Quezon City" },
-  { name: "SM Aura Premier", city: "Taguig City", address: "26th St. cor. McKinley Parkway, Bonifacio Global City, Taguig City" },
-  { name: "Ayala Malls Manila Bay", city: "Parañaque City", address: "Diosdado Macapagal Blvd. cor. Aseana Ave., Parañaque City" },
-  { name: "Ayala Malls TriNoma", city: "Quezon City", address: "EDSA cor. North Ave., Bagong Pag-asa, Quezon City" },
-  { name: "Glorietta", city: "Makati City", address: "Ayala Center, East St., Makati City" },
-  { name: "Greenbelt", city: "Makati City", address: "Legazpi St., Legazpi Village, Makati City" },
-  { name: "Fisher Mall", city: "Quezon City", address: "Quezon Ave. cor. Roosevelt Ave., Quezon City" },
+  { name: "SM Megamall", city: "Mandaluyong City", address: "EDSA corner Doña Julia Vargas Ave, Ortigas Center, Mandaluyong City" },
+  { name: "SM North EDSA", city: "Quezon City", address: "North Ave corner EDSA, Quezon City" },
+  { name: "SM Fairview", city: "Quezon City", address: "Quirino Highway corner Regalado Ave, Novaliches, Quezon City" },
+  { name: "SM Aura Premier", city: "Taguig City", address: "26th St corner McKinley Parkway, Bonifacio Global City, Taguig" },
+  { name: "Ayala Malls Manila Bay", city: "Parañaque City", address: "Diosdado Macapagal Blvd corner Aseana Ave, Parañaque City" },
+  { name: "Ayala Malls TriNoma", city: "Quezon City", address: "North Ave corner EDSA, Bagong Pag-asa, Quezon City" },
+  { name: "Glorietta", city: "Makati City", address: "Ayala Center, Palm Drive, Makati City" },
+  { name: "Greenbelt", city: "Makati City", address: "Legazpi St, Ayala Center, Makati City" },
+  { name: "Fisher Mall", city: "Quezon City", address: "Quezon Ave corner Roosevelt Ave, Quezon City" },
 ] as const;
 type CinemaBranch = typeof cinemaBranches[number]["name"];
+type BookedSeatsByShowing = Record<string, string[]>;
+const bookedSeatsStorageKey = "cinemaWorldBookedSeats";
+const noBookedSeats: readonly string[] = [];
 const paymentMethods = ["Credit / Debit Card", "GCash", "Maya", "Bank Transfer"] as const;
 type PaymentMethod = typeof paymentMethods[number];
+type CompletedBookingSnapshot = {
+  movieTitle: string;
+  cinema: CinemaBranch;
+  format: MovieFormat;
+  date: string;
+  showtime: string;
+  seats: string[];
+  guestName: string;
+  contact: string;
+  paymentMethod: PaymentMethod;
+  totalPrice: string;
+  bookingRef: string;
+  to_email: string;
+};
 type PaymentDetails = {
   cardholderName: string;
   cardNumber: string;
@@ -338,6 +361,8 @@ const movies: Movie[] = [
   },
 ];
 
+const nowShowingMovies = movies.filter((movie) => movie.status === "Now showing");
+
 const releaseDates: Record<string, string> = {
   "spider-man": "July 31, 2026",
   odyssey: "July 17, 2026",
@@ -358,41 +383,52 @@ const releaseDates: Record<string, string> = {
 const screeningFormats = [
   {
     id: "2d",
-    name: "2D",
+    format: "2D",
+    selectorLabel: "2D (Regular)",
+    name: "2D (Regular Cinema)",
     price: 380,
     showtimes: ["10:30 AM", "1:15 PM", "4:00 PM", "7:00 PM", "9:45 PM"],
-    description: "Enjoy every story in a classic, comfortable cinema setting.",
+    description: "Standard auditorium with crisp digital projection and surround sound; standard individual seating layout.",
+    inclusions: ["Crisp digital projection", "Surround sound", "Standard individual seating"],
     rows: 8,
     seatsPerRow: 12,
     layout: "standard",
   },
   {
     id: "3d",
+    format: "3D",
+    selectorLabel: "3D",
     name: "3D",
     price: 410,
     showtimes: ["11:15 AM", "2:10 PM", "5:05 PM", "8:00 PM"],
-    description: "Step into the action with immersive depth on the big screen.",
-    badge: "3D glasses included · Immersive depth",
+    description: "Standard auditorium with RealD 3D projection and glasses; a ₱30 format add-on over 2D. Uses the same seating layout as 2D.",
+    inclusions: ["RealD 3D projection", "3D glasses included", "+₱30 over 2D"],
     rows: 8,
     seatsPerRow: 12,
     layout: "standard",
   },
   {
     id: "imax",
+    format: "IMAX",
+    selectorLabel: "IMAX",
     name: "IMAX",
     price: 850,
     showtimes: ["12:00 PM", "3:30 PM", "7:15 PM", "10:30 PM"],
-    description: "Experience a larger image and powerful sound in a wide auditorium.",
+    description: "Expansive floor-to-ceiling screen with laser projection and crystal-clear surround audio; larger stadium seating with wider rows and higher total capacity.",
+    inclusions: ["Floor-to-ceiling screen", "Laser projection", "Crystal-clear surround audio", "Higher-capacity stadium seating"],
     rows: 12,
     seatsPerRow: 18,
     layout: "imax",
   },
   {
     id: "directors-club",
+    format: "Director's Club",
+    selectorLabel: "Director's Club",
     name: "Director's Club",
     price: 550,
     showtimes: ["1:00 PM", "4:30 PM", "8:15 PM"],
-    description: "Settle into an intimate VIP auditorium with spacious recliner seating.",
+    description: "Boutique luxury cinema with plush leather recliners, sharp laser projection, and Dolby Atmos; intimate two-seat pods with extra aisle space between pairs.",
+    inclusions: ["Plush leather recliners", "Sharp laser projection", "Dolby Atmos sound", "Two-seat pods with extra aisle space"],
     rows: 5,
     seatsPerRow: 6,
     layout: "directors-club",
@@ -432,6 +468,54 @@ function getOccupiedSeatIndexes(screeningKey: string, seatCount: number) {
   return occupiedSeats;
 }
 
+function getScreeningKey(movieId: string, cinema: string, format: MovieFormat, date: string, showtime: string) {
+  return `${cinema}|${movieId}|${date}|${format}|${showtime}`;
+}
+
+function isBookedSeatsByShowing(value: unknown): value is BookedSeatsByShowing {
+  return typeof value === "object"
+    && value !== null
+    && !Array.isArray(value)
+    && Object.values(value).every(
+      (seats) => Array.isArray(seats) && seats.every((seat) => typeof seat === "string"),
+    );
+}
+
+function readBookedSeats(): BookedSeatsByShowing {
+  if (typeof window === "undefined") return {};
+  try {
+    const storedValue = window.localStorage.getItem(bookedSeatsStorageKey);
+    if (storedValue === null) return {};
+    const parsedValue: unknown = JSON.parse(storedValue);
+    if (!isBookedSeatsByShowing(parsedValue)) {
+      throw new Error("Stored booked-seat data has an invalid format.");
+    }
+    return parsedValue;
+  } catch (error) {
+    console.error(error);
+    return {};
+  }
+}
+
+function saveBookedSeats(bookedSeats: BookedSeatsByShowing) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(bookedSeatsStorageKey, JSON.stringify(bookedSeats));
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function mergeBookedSeats(...records: BookedSeatsByShowing[]): BookedSeatsByShowing {
+  const merged: BookedSeatsByShowing = {};
+  for (const record of records) {
+    for (const [screening, seats] of Object.entries(record)) {
+      merged[screening] = Array.from(new Set([...(merged[screening] ?? []), ...seats]));
+    }
+  }
+  return merged;
+}
+
 function formatDate(value: string) {
   return new Date(`${value}T12:00:00`).toLocaleDateString("en-US", {
     weekday: "long",
@@ -444,6 +528,16 @@ function currency(value: number) {
   return new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(value);
 }
 
+function readAdminSession() {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.sessionStorage.getItem(adminSessionStorageKey) === "true";
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+}
+
 function posterStyle(movie: Movie): PosterStyle {
   return {
     backgroundColor: movie.tint,
@@ -453,16 +547,24 @@ function posterStyle(movie: Movie): PosterStyle {
 }
 
 export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab?: MovieTab }) {
+  const router = useRouter();
   const activeTab = initialTab;
+  const [heroPosterIndex, setHeroPosterIndex] = useState(0);
+  const [heroPaused, setHeroPaused] = useState(false);
+  const [branchPage, setBranchPage] = useState(0);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingStep, setBookingStep] = useState<"selection" | "review" | "notice" | "confirmed">("selection");
   const [selectedFormat, setSelectedFormat] = useState<MovieFormat>("2D");
+  const [showcaseFormat, setShowcaseFormat] = useState<MovieFormat>("2D");
   const [selectedCinema, setSelectedCinema] = useState<CinemaBranch>("SM Mall of Asia");
   const [selectedDate, setSelectedDate] = useState(() => dateKey(new Date()));
   const [datePage, setDatePage] = useState(0);
   const [selectedTime, setSelectedTime] = useState("");
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
+  const [bookedSeatsByShowing, setBookedSeatsByShowing] = useState<BookedSeatsByShowing>(() => readBookedSeats());
+  const [completedBookingSeats, setCompletedBookingSeats] = useState<string[]>([]);
+  const [completedBookingSnapshot, setCompletedBookingSnapshot] = useState<CompletedBookingSnapshot | null>(null);
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactNumber, setContactNumber] = useState("");
@@ -478,12 +580,30 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
   const [authEmail, setAuthEmail] = useState("");
   const [authMessage, setAuthMessage] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(readAdminSession);
+  const [adminSignInOpen, setAdminSignInOpen] = useState(false);
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminSignInError, setAdminSignInError] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
   const [reviewName, setReviewName] = useState("");
   const [reviewEmail, setReviewEmail] = useState("");
   const [reviewText, setReviewText] = useState("");
+
+  useEffect(() => {
+    if (activeTab !== "Now showing" || heroPaused || nowShowingMovies.length < 2) return;
+    const intervalId = window.setInterval(() => {
+      setHeroPosterIndex((index) => (index + 1) % nowShowingMovies.length);
+    }, 2500);
+    return () => window.clearInterval(intervalId);
+  }, [activeTab, heroPaused]);
+
+  function selectHeroPoster(index: number) {
+    if (index === heroPosterIndex) return;
+    setHeroPosterIndex(index);
+  }
 
   const today = new Date();
   const dates = Array.from({ length: 10 }, (_, offset) => {
@@ -502,6 +622,8 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
   const datePageCount = Math.ceil(calendarDates.length / 7);
   const currentDatePage = Math.min(datePage, Math.max(0, datePageCount - 1));
   const visibleDates = calendarDates.slice(currentDatePage * 7, currentDatePage * 7 + 7);
+  const previousHeroPosterIndex = (heroPosterIndex - 1 + nowShowingMovies.length) % nowShowingMovies.length;
+  const nextHeroPosterIndex = (heroPosterIndex + 1) % nowShowingMovies.length;
   const firstVisibleDate = visibleDates[0] ?? today;
   const lastVisibleDate = visibleDates[visibleDates.length - 1] ?? today;
   const visibleDatesShareMonth = firstVisibleDate.getFullYear() === lastVisibleDate.getFullYear()
@@ -524,23 +646,52 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
           : dates.map(dateKey),
   );
   const visibleMovies = movies.filter((movie) => movie.status === activeTab);
+  const visibleBranches = cinemaBranches.slice(branchPage * 5, branchPage * 5 + 5);
   const selectedFormatDetails = screeningFormatDetails[selectedFormat];
+  const showcaseFormatDetails = screeningFormatDetails[showcaseFormat];
+  const isDirectorsClubPreview = showcaseFormat === "Director's Club";
+  const showcaseSeatRows = Array.from(
+    { length: isDirectorsClubPreview ? 5 : showcaseFormatDetails.rows },
+    (_, rowIndex) => String.fromCharCode(65 + rowIndex),
+  );
+  const showcaseSeatsPerSide = isDirectorsClubPreview ? 4 : showcaseFormatDetails.seatsPerRow / 2;
   const bookingSeatRows = Array.from({ length: selectedFormatDetails.rows }, (_, rowIndex) => String.fromCharCode(65 + rowIndex));
   const halfSeatCount = selectedFormatDetails.seatsPerRow / 2;
+  const activeShowingKey = selectedMovie
+    ? getScreeningKey(selectedMovie.id, selectedCinema, selectedFormat, selectedDate, selectedTime)
+    : null;
+  const bookedSeatsForShowing = activeShowingKey
+    ? bookedSeatsByShowing[activeShowingKey] ?? noBookedSeats
+    : noBookedSeats;
+  const bookedSeatLabels = new Set(bookedSeatsForShowing);
   const seatGridTemplateColumns = selectedFormatDetails.layout === "directors-club"
     ? "repeat(2, minmax(0, 1fr)) minmax(12px, 1.5fr) repeat(2, minmax(0, 1fr)) minmax(12px, 1.5fr) repeat(2, minmax(0, 1fr))"
     : `repeat(${halfSeatCount}, minmax(0, 1fr)) minmax(${selectedFormatDetails.layout === "imax" ? 20 : 16}px, 1.3fr) repeat(${halfSeatCount}, minmax(0, 1fr))`;
   const occupiedSeatIndexes = selectedMovie
     ? getOccupiedSeatIndexes(
-      `${selectedCinema}|${selectedMovie.id}|${selectedDate}|${selectedFormat}|${selectedTime}`,
+      activeShowingKey ?? "",
       selectedFormatDetails.rows * selectedFormatDetails.seatsPerRow,
     )
     : new Set<number>();
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== bookedSeatsStorageKey && event.key !== null) return;
+      const updatedBookedSeats = readBookedSeats();
+      const occupiedSeatsForShowing = new Set(
+        activeShowingKey ? updatedBookedSeats[activeShowingKey] ?? noBookedSeats : noBookedSeats,
+      );
+      setBookedSeatsByShowing(updatedBookedSeats);
+      setSelectedSeats((current) => current.filter((seat) => !occupiedSeatsForShowing.has(seat)));
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [activeShowingKey]);
   const hasPaymentDetails = selectedPaymentMethod === "Credit / Debit Card"
     ? Boolean(paymentDetails.cardholderName.trim() && paymentDetails.cardNumber.trim() && paymentDetails.expiry.trim() && paymentDetails.cvv.trim())
     : Boolean(selectedPaymentMethod && paymentDetails.reference.trim());
   const isCheckoutReady = Boolean(
     selectedSeats.length
+      && selectedSeats.every((seat) => !bookedSeatLabels.has(seat))
       && contactName.trim()
       && contactEmail.trim()
       && contactNumber.trim()
@@ -629,6 +780,8 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
     setSelectedFormat(movie.formats[0]);
     setSelectedTime(screeningFormatDetails[movie.formats[0]].showtimes[0]);
     setSelectedSeats([]);
+    setCompletedBookingSeats([]);
+    setCompletedBookingSnapshot(null);
     setContactName("");
     setContactEmail(userEmail ?? "");
     setContactNumber("");
@@ -649,7 +802,8 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
     setSelectedSeats([]);
   }
 
-  function toggleSeat(seat: string) {
+  function toggleSeat(seat: string, seatNumber: number) {
+    if (occupiedSeatIndexes.has(seatNumber) || bookedSeatLabels.has(seat)) return;
     setSelectedSeats((current) =>
       current.includes(seat) ? current.filter((item) => item !== seat) : [...current, seat].sort(),
     );
@@ -672,43 +826,61 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
   }
 
   async function confirmBooking() {
-    if (!selectedMovie || !isCheckoutReady) {
+    if (!selectedMovie || !selectedPaymentMethod || !isCheckoutReady) {
       setBookingError("Complete all required guest and payment details before confirming your booking.");
       return;
     }
+    const seatsForBooking = [...selectedSeats];
+    const referenceNumber = Math.floor(1000 + Math.random() * 9000);
+    const bookingCodeValue = `CW-${selectedDate.slice(0, 4)}-${referenceNumber}`;
+    const totalAmount = seatsForBooking.length * selectedFormatDetails.price;
+    const bookingSnapshot: CompletedBookingSnapshot = {
+      movieTitle: selectedMovie.title,
+      cinema: selectedCinema,
+      format: selectedFormat,
+      date: formatDate(selectedDate),
+      showtime: selectedTime,
+      seats: seatsForBooking,
+      guestName: contactName.trim(),
+      contact: contactNumber.trim(),
+      paymentMethod: selectedPaymentMethod,
+      totalPrice: currency(totalAmount),
+      bookingRef: bookingCodeValue,
+      to_email: contactEmail.trim(),
+    };
     setBookingBusy(true);
     setBookingError("");
 
-    const referenceNumber = Math.floor(1000 + Math.random() * 9000);
-    const bookingCodeValue = `CW-${selectedDate.slice(0, 4)}-${referenceNumber}`;
     const reservationRecord = {
       id: bookingCodeValue,
       movie_title: selectedMovie.title,
       show_date: selectedDate,
       show_time: selectedTime,
-      seats: selectedSeats,
+      seats: seatsForBooking,
       contact_name: contactName,
       contact_email: contactEmail,
       contact_number: contactNumber,
       cinema: selectedCinema,
       format: selectedFormat,
       payment_method: selectedPaymentMethod,
-      total_amount: selectedSeats.length * selectedFormatDetails.price,
+      total_amount: totalAmount,
       created_at: new Date().toISOString(),
       status: "New",
     };
 
-    const storedReservations = JSON.parse(
-      window.localStorage.getItem("cinemaWorldReservations") ?? "[]",
-    ) as typeof reservationRecord[];
-    window.localStorage.setItem(
-      "cinemaWorldReservations",
-      JSON.stringify([reservationRecord, ...storedReservations].slice(0, 100)),
-    );
-    window.dispatchEvent(new StorageEvent("storage", {
-      key: "cinemaWorldReservations",
-      newValue: JSON.stringify([reservationRecord, ...storedReservations].slice(0, 100)),
-    }));
+    try {
+      const storedReservations = JSON.parse(
+        window.localStorage.getItem("cinemaWorldReservations") ?? "[]",
+      ) as typeof reservationRecord[];
+      const updatedReservations = [reservationRecord, ...storedReservations].slice(0, 100);
+      window.localStorage.setItem("cinemaWorldReservations", JSON.stringify(updatedReservations));
+      window.dispatchEvent(new StorageEvent("storage", {
+        key: "cinemaWorldReservations",
+        newValue: JSON.stringify(updatedReservations),
+      }));
+    } catch (error) {
+      console.error(error);
+    }
 
     if (supabase) {
       const { data } = await supabase.auth.getUser();
@@ -717,10 +889,10 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
         movie_title: selectedMovie.title,
         show_date: selectedDate,
         show_time: selectedTime,
-        seats: selectedSeats,
+        seats: seatsForBooking,
         contact_name: contactName,
         contact_email: contactEmail,
-        total_amount: selectedSeats.length * selectedFormatDetails.price,
+        total_amount: seatsForBooking.length * selectedFormatDetails.price,
       });
       if (error) {
         setBookingBusy(false);
@@ -729,6 +901,23 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
       }
     }
 
+    const screeningKey = getScreeningKey(
+      selectedMovie.id,
+      selectedCinema,
+      selectedFormat,
+      selectedDate,
+      selectedTime,
+    );
+    const updatedBookedSeats = mergeBookedSeats(
+      bookedSeatsByShowing,
+      readBookedSeats(),
+      { [screeningKey]: seatsForBooking },
+    );
+    setBookedSeatsByShowing(updatedBookedSeats);
+    saveBookedSeats(updatedBookedSeats);
+    setCompletedBookingSeats(seatsForBooking);
+    setCompletedBookingSnapshot(bookingSnapshot);
+    setSelectedSeats([]);
     setBookingCode(bookingCodeValue);
     setBookingBusy(false);
     setBookingStep("confirmed");
@@ -736,7 +925,7 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
 
   function downloadETicket() {
     setTicketActionError("");
-    if (!selectedMovie || !selectedPaymentMethod || !bookingCode) {
+    if (!selectedMovie || !selectedPaymentMethod || !bookingCode || completedBookingSeats.length === 0) {
       setTicketActionError("Your e-ticket is not ready to download yet.");
       return;
     }
@@ -804,12 +993,12 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
       drawField("Format", selectedFormat, 610, 390);
       drawField("Date", formatDate(selectedDate), 90, 500);
       drawField("Showtime", selectedTime, 610, 500);
-      drawField("Seats", selectedSeats.join(", "), 90, 610);
+      drawField("Seats", completedBookingSeats.join(", "), 90, 610);
       drawField("Guest name", contactName, 610, 610);
       drawField("Email", contactEmail, 90, 720);
       drawField("Contact", contactNumber, 610, 720);
       drawField("Payment method", selectedPaymentMethod, 90, 830);
-      drawField("Total price", currency(selectedSeats.length * selectedFormatDetails.price), 610, 830);
+      drawField("Total price", currency(completedBookingSeats.length * selectedFormatDetails.price), 610, 830);
 
       context.fillStyle = "rgba(255, 255, 255, 0.96)";
       context.fillRect(1280, 265, 380, 380);
@@ -859,15 +1048,48 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
 
   async function sendTicketEmail() {
     setTicketActionError("");
-    if (!selectedMovie || !selectedPaymentMethod || !bookingCode || !isCheckoutReady) {
+    const booking = completedBookingSnapshot;
+    if (!booking || !booking.bookingRef || !booking.to_email || booking.seats.length === 0) {
       setTicketEmailStatus("error");
       setTicketActionError("The booking details are incomplete, so the email could not be sent.");
       return;
     }
 
+    const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
+    const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
+    const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
+    if (!serviceId || !templateId || !publicKey) {
+      setTicketEmailStatus("error");
+      setTicketActionError("EmailJS is not configured. Add its service ID, template ID, and public key to .env.local.");
+      return;
+    }
+
+    const templateParams = {
+      to_email: booking.to_email,
+      movie: booking.movieTitle,
+      cinema: booking.cinema,
+      format: booking.format,
+      date: booking.date,
+      showtime: booking.showtime,
+      seats: booking.seats.join(", "),
+      guest_name: booking.guestName,
+      contact: booking.contact,
+      payment_method: booking.paymentMethod,
+      total_price: booking.totalPrice,
+      booking_reference: booking.bookingRef,
+      qr_code_url: `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=${encodeURIComponent(booking.bookingRef)}`,
+    };
+
     setTicketEmailStatus("sending");
-    await new Promise((resolve) => window.setTimeout(resolve, 650));
-    setTicketEmailStatus("sent");
+    try {
+      console.log("EmailJS digital ticket templateParams:", templateParams);
+      await emailjs.send(serviceId, templateId, templateParams, { publicKey });
+      setTicketEmailStatus("sent");
+    } catch (error) {
+      console.error(error);
+      setTicketEmailStatus("error");
+      setTicketActionError("Your ticket email could not be sent. Please try again.");
+    }
   }
 
   async function sendSignInLink(event: FormEvent<HTMLFormElement>) {
@@ -889,6 +1111,38 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
   async function signOut() {
     if (!supabase) return;
     await supabase.auth.signOut();
+  }
+
+  function openAdmin() {
+    if (isAdminAuthenticated) {
+      router.push("/admin");
+      return;
+    }
+    setAdminEmail("");
+    setAdminPassword("");
+    setAdminSignInError("");
+    setAdminSignInOpen(true);
+  }
+
+  function signInToAdmin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (adminEmail.trim().toLowerCase() !== demoAdminEmail || adminPassword !== demoAdminPassword) {
+      setAdminSignInError("Invalid admin email or password.");
+      return;
+    }
+
+    try {
+      window.sessionStorage.setItem(adminSessionStorageKey, "true");
+    } catch (error) {
+      console.error(error);
+      setAdminSignInError("Admin sign-in could not be saved in this browser session.");
+      return;
+    }
+
+    setIsAdminAuthenticated(true);
+    setAdminSignInError("");
+    setAdminSignInOpen(false);
+    router.push("/admin");
   }
 
   const cinemaSelector = (
@@ -924,10 +1178,18 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
           <a href="/now-showing" aria-current={activeTab === "Now showing" ? "page" : undefined}>Now showing</a>
           <a href="/coming-soon" aria-current={activeTab === "Coming soon" ? "page" : undefined}>Coming soon</a>
           <a href="/advance-booking" aria-current={activeTab === "Advance booking" ? "page" : undefined}>Advance booking</a>
+          <a href="/now-showing#screening-formats">Screening formats</a>
+          <a href="/now-showing#cinema-branches">Cinema branches</a>
         </nav>
         <div className="header-actions">
           <span className="header-location"><MapPin size={13} /> Manila, PH</span>
-          <a className="text-button" href="/admin">Admin</a>
+          <button
+            className="text-button"
+            type="button"
+            onClick={openAdmin}
+          >
+            Admin
+          </button>
           {userEmail ? (
             <button className="text-button" type="button" onClick={() => void signOut()} title={`Sign out ${userEmail}`}>
               <UserRound size={15} /> Sign out
@@ -943,35 +1205,103 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
       <main>
         {activeTab === "Now showing" && (
           <section className="hero" id="home" aria-labelledby="hero-title">
-            <div className="hero-trailer" aria-hidden="true">
-              <iframe
-                src="https://www.youtube-nocookie.com/embed/8TZMtslA3UY?autoplay=1&mute=1&enablejsapi=1&controls=0&loop=1&playlist=8TZMtslA3UY&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&disablekb=1&fs=0"
-                title="Spider-Man: Brand New Day official trailer"
-                allow="autoplay; encrypted-media; picture-in-picture"
-                tabIndex={-1}
-                onLoad={(event) => {
-                  const frame = event.currentTarget;
-                  frame.contentWindow?.postMessage(
-                    JSON.stringify({ event: "command", func: "mute", args: [] }),
-                    "https://www.youtube-nocookie.com",
-                  );
-                  window.setTimeout(() => {
-                    frame.contentWindow?.postMessage(
-                      JSON.stringify({ event: "command", func: "playVideo", args: [] }),
-                      "https://www.youtube-nocookie.com",
-                    );
-                  }, 300);
-                }}
-              />
-            </div>
             <div className="hero-copy">
-              <h1 className="hero-title" id="hero-title"><span>Cherish Movie Moments With Friends and Family!</span></h1>
-              <p className="hero-description">We&apos;ll take care of everything else right here at CinemaWorld!</p>
+              <p className="eyebrow"><span className="eyebrow-dot" aria-hidden="true" /> NOW SHOWING</p>
+              <h1
+                className="hero-title"
+                id="hero-title"
+                style={{ fontFamily: "'Poppins', sans-serif", color: "#ffffff" }}
+              >
+                <span>Cherish Movie Moments With Friends and Family!</span>
+              </h1>
+              <p
+                className="hero-description"
+                style={{ fontFamily: "'Inter', sans-serif", color: "#f3d9fa" }}
+              >
+                We&apos;ll take care of everything else right here at CinemaWorld!
+              </p>
               <div className="hero-ctas">
-                <a className="primary-button" href="#movies">Explore movies <ArrowRight /></a>
+                <a className="primary-button" href="#movies">
+                  Explore movies <ArrowRight />
+                </a>
               </div>
-              <div className="hero-note"><ShieldCheck size={14} /> Secure checkout · Mobile tickets accepted</div>
+              <div className="hero-note">
+                <ShieldCheck size={14} /> Secure checkout · Mobile tickets accepted
+              </div>
             </div>
+
+            {nowShowingMovies[heroPosterIndex] && (
+              <div
+                className="hero-showcase"
+                onMouseEnter={() => setHeroPaused(true)}
+                onMouseLeave={() => setHeroPaused(false)}
+              >
+                <p className="hero-showcase-label">NOW SHOWING</p>
+                <div className="hero-poster-stack" role="group" aria-label="Now showing movie posters">
+                  {nowShowingMovies.map((movie, index) => {
+                    const position = index === heroPosterIndex
+                      ? "active"
+                      : index === previousHeroPosterIndex
+                        ? "previous"
+                        : index === nextHeroPosterIndex
+                          ? "next"
+                          : "hidden";
+                    const className = `hero-poster-card hero-poster-card--${position}`;
+                    const posterImage = (
+                      <NextImage
+                        className="hero-poster-image"
+                        src={movie.poster}
+                        alt={position === "active" ? `${movie.title} movie poster` : ""}
+                        width={600}
+                        height={900}
+                        unoptimized
+                      />
+                    );
+
+                    if (position === "active") {
+                      return (
+                        <a
+                          key={movie.id}
+                          className={className}
+                          href="#movies"
+                          aria-label={`Explore ${movie.title} and other movies`}
+                        >
+                          {posterImage}
+                        </a>
+                      );
+                    }
+
+                    return (
+                      <button
+                        key={movie.id}
+                        className={className}
+                        type="button"
+                        aria-label={`Show ${movie.title} poster`}
+                        aria-hidden={position === "hidden" ? true : undefined}
+                        tabIndex={position === "hidden" ? -1 : 0}
+                        disabled={position === "hidden"}
+                        onClick={() => selectHeroPoster(index)}
+                      >
+                        {posterImage}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p key={nowShowingMovies[heroPosterIndex].id} className="hero-poster-caption">{nowShowingMovies[heroPosterIndex].title}</p>
+                <div className="hero-poster-dots" role="group" aria-label="Choose a featured movie">
+                  {nowShowingMovies.map((movie, index) => (
+                    <button
+                      key={movie.id}
+                      className="hero-poster-dot"
+                      type="button"
+                      aria-label={`Show ${movie.title} poster`}
+                      aria-current={index === heroPosterIndex ? "true" : undefined}
+                      onClick={() => selectHeroPoster(index)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
         )}
 
@@ -1012,14 +1342,158 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
           </div>
         </section>
 
+        {activeTab === "Now showing" && (
+          <section className="format-showcase" id="screening-formats" aria-labelledby="format-showcase-heading">
+            <div className="format-showcase-topline">
+              <div>
+                <p className="section-kicker">Choose your cinema experience</p>
+                <h2 className="section-heading" id="format-showcase-heading">Screening Formats &amp; Seating Layouts</h2>
+              </div>
+              <div className="format-tabs" role="group" aria-label="Screening formats">
+                {screeningFormats.map((format) => (
+                  <button
+                    key={format.id}
+                    className={`format-tab${showcaseFormat === format.format ? " is-active" : ""}`}
+                    type="button"
+                    aria-pressed={showcaseFormat === format.format}
+                    onClick={() => setShowcaseFormat(format.format)}
+                  >
+                    {format.selectorLabel}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="format-showcase-panel" aria-live="polite">
+              <div className="format-info-card">
+                <div className="format-info-copy">
+                  <span className="format-overline">Cinema format</span>
+                  <h3>{showcaseFormatDetails.name}</h3>
+                  <p>{showcaseFormatDetails.description}</p>
+                </div>
+                <div className="format-price">
+                  <span>Ticket price</span>
+                  <strong>₱{showcaseFormatDetails.price}</strong>
+                  <small>per ticket</small>
+                </div>
+                <ul className="format-inclusions">
+                  {showcaseFormatDetails.inclusions.map((inclusion) => (
+                    <li key={inclusion}><Check size={14} aria-hidden="true" /> {inclusion}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="format-preview">
+                <div className={`format-screen format-screen--${showcaseFormatDetails.layout}`} />
+                <span className="format-screen-label">Screen</span>
+                <p className="format-seat-summary">
+                  {isDirectorsClubPreview
+                    ? `${showcaseSeatRows.length} rows · 4 pairs per row`
+                    : `${showcaseSeatRows.length} rows · ${showcaseFormatDetails.seatsPerRow} individual seats per row`}
+                </p>
+                {(showcaseFormat === "2D" || showcaseFormat === "3D") && (
+                  <span className="format-badge">Same Seating Layout for 2D &amp; 3D</span>
+                )}
+                <div
+                  className={`format-seat-map format-seat-map--${showcaseFormatDetails.layout}`}
+                  role="img"
+                  aria-label={isDirectorsClubPreview
+                    ? "Five rows of four two-seat pods with extra aisles"
+                    : `${showcaseSeatRows.length} rows with ${showcaseFormatDetails.seatsPerRow} individual seats per row and a center aisle`}
+                >
+                  {showcaseSeatRows.map((row) => (
+                    isDirectorsClubPreview ? (
+                      <div className="format-seat-row format-seat-row--club" key={row}>
+                        {Array.from({ length: 4 }, (_, pairIndex) => (
+                          <div className="format-seat-pair" key={`${row}-pair-${pairIndex}`}>
+                            <span className="format-seat format-seat--pair" />
+                            <span className="format-seat format-seat--pair" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="format-seat-row" key={row}>
+                        <div className="format-seat-bank">
+                          {Array.from({ length: showcaseSeatsPerSide }, (_, seatIndex) => (
+                            <span className="format-seat" key={`${row}-left-${seatIndex}`} />
+                          ))}
+                        </div>
+                        <span className="format-seat-aisle" />
+                        <div className="format-seat-bank">
+                          {Array.from({ length: showcaseSeatsPerSide }, (_, seatIndex) => (
+                            <span className="format-seat" key={`${row}-right-${seatIndex}`} />
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  ))}
+                </div>
+                <div className="format-preview-footer">
+                  <div className="format-seat-legend" aria-label="Seat legend">
+                    <span><i className="format-legend-seat" aria-hidden="true" /> Available</span>
+                    <span><i className="format-legend-pair" aria-hidden="true"><i /><i /></i> Pair Pod</span>
+                    <span><i className="format-legend-aisle" aria-hidden="true" /> Aisle</span>
+                  </div>
+                  <a className="primary-button format-book-button" href="#movies">
+                    Book this format <ArrowRight size={14} />
+                  </a>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {activeTab === "Now showing" && (
+          <section className="branch-showcase" id="cinema-branches" aria-labelledby="branch-showcase-heading">
+            <div className="branch-showcase-topline">
+              <div>
+                <p className="section-kicker">Find us across Metro Manila</p>
+                <h2 className="section-heading" id="branch-showcase-heading">Cinema Mall Branches</h2>
+                <p className="section-description">Choose from ten CinemaWorld locations near you.</p>
+              </div>
+            </div>
+            <div className="branch-grid" key={branchPage}>
+              {visibleBranches.map((branch) => (
+                <article className="branch-card" key={branch.name}>
+                  <div className="branch-card-top">
+                    <span className="branch-marker"><MapPin size={15} aria-hidden="true" /></span>
+                    <span className="branch-city-tag">{branch.city}</span>
+                  </div>
+                  <h3>{branch.name}</h3>
+                  <p>{branch.address}</p>
+                  <div className="branch-format-badges" role="group" aria-label="Available formats">
+                    {screeningFormats.map((format) => (
+                      <span className="branch-format-badge" key={format.id}>{format.format}</span>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="branch-pagination" role="group" aria-label="Cinema branch pages">
+              <button
+                className="branch-nav-button"
+                type="button"
+                disabled={branchPage === 0}
+                onClick={() => setBranchPage((page) => Math.max(0, page - 1))}
+              >
+                <ArrowLeft size={14} /> Previous 5
+              </button>
+              <span className="branch-page-indicator">Page {branchPage + 1} of {Math.ceil(cinemaBranches.length / 5)}</span>
+              <button
+                className="branch-nav-button"
+                type="button"
+                disabled={branchPage >= Math.ceil(cinemaBranches.length / 5) - 1}
+                onClick={() => setBranchPage((page) => Math.min(Math.ceil(cinemaBranches.length / 5) - 1, page + 1))}
+              >
+                Next 5 <ArrowRight size={14} />
+              </button>
+            </div>
+          </section>
+        )}
+
       </main>
 
       <footer className="site-footer">
-        <span className="footer-brand"><img src="." /> CinemaWorld</span>
-        <nav className="footer-module-links" aria-label="Module links">
-          <a href="/now-showing">User module</a>
-          <a href="/admin">Admin module</a>
-        </nav>
         <span>© 2026 CinemaWorld Cinemas</span>
       </footer>
 
@@ -1091,7 +1565,7 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
                   <div className="digital-ticket" ref={ticketCardRef}>
                     <div className="digital-ticket-main">
                       <div className="digital-ticket-copy">
-                        <p className="section-kicker">CinemaWorld · Admit {selectedSeats.length}</p>
+                        <p className="section-kicker">CinemaWorld · Admit {completedBookingSeats.length}</p>
                         <h3>{selectedMovie.title}</h3>
                         <p className="digital-ticket-format">{selectedFormat} · Cinema admission</p>
                         <div className="digital-ticket-details">
@@ -1100,17 +1574,17 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
                           <div><span>FORMAT</span><strong>{selectedFormat}</strong></div>
                           <div><span>DATE</span><strong>{formatDate(selectedDate)}</strong></div>
                           <div><span>SHOWTIME</span><strong>{selectedTime}</strong></div>
-                          <div><span>SEATS</span><strong>{selectedSeats.join(", ")}</strong></div>
+                          <div><span>SEATS</span><strong>{completedBookingSeats.join(", ")}</strong></div>
                           <div><span>GUEST NAME</span><strong>{contactName}</strong></div>
                           <div><span>EMAIL</span><strong>{contactEmail}</strong></div>
                           <div><span>CONTACT</span><strong>{contactNumber}</strong></div>
                           <div><span>PAYMENT METHOD</span><strong>{selectedPaymentMethod}</strong></div>
-                          <div><span>TOTAL PRICE</span><strong>{currency(selectedSeats.length * selectedFormatDetails.price)}</strong></div>
+                          <div><span>TOTAL PRICE</span><strong>{currency(completedBookingSeats.length * selectedFormatDetails.price)}</strong></div>
                         </div>
                       </div>
                       <div className="digital-ticket-qr">
                         <QRCodeSVG
-                          value={JSON.stringify({ cinema: "CinemaWorld", branch: selectedCinema, code: bookingCode, movie: selectedMovie.title, date: selectedDate, time: selectedTime, seats: selectedSeats, paymentMethod: selectedPaymentMethod, total: selectedSeats.length * selectedFormatDetails.price })}
+                          value={JSON.stringify({ cinema: "CinemaWorld", branch: selectedCinema, code: bookingCode, movie: selectedMovie.title, date: selectedDate, time: selectedTime, seats: completedBookingSeats, paymentMethod: selectedPaymentMethod, total: completedBookingSeats.length * selectedFormatDetails.price })}
                           size={112}
                           level="M"
                           aria-label={`Ticket QR code ${bookingCode}`}
@@ -1187,11 +1661,11 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
                       Array.from({ length: selectedFormatDetails.seatsPerRow }, (_, seatIndex) => {
                         const seat = `${row}${seatIndex + 1}`;
                         const seatNumber = rowIndex * selectedFormatDetails.seatsPerRow + seatIndex;
-                        const unavailable = occupiedSeatIndexes.has(seatNumber);
+                        const unavailable = occupiedSeatIndexes.has(seatNumber) || bookedSeatLabels.has(seat);
                         const seatColumn = selectedFormatDetails.layout === "directors-club"
                           ? seatIndex + Math.floor(seatIndex / 2) + 1
                           : seatIndex < halfSeatCount ? seatIndex + 1 : seatIndex + 2;
-                        return <button className="seat" style={{ gridColumn: seatColumn }} type="button" key={seat} aria-label={`Seat ${seat}${unavailable ? ", occupied" : ""}`} aria-pressed={selectedSeats.includes(seat)} disabled={unavailable} onClick={() => toggleSeat(seat)}>{seat}</button>;
+                        return <button className="seat" style={{ gridColumn: seatColumn }} type="button" key={seat} aria-label={`Seat ${seat}${unavailable ? ", occupied" : ""}`} aria-pressed={selectedSeats.includes(seat)} disabled={unavailable} onClick={() => toggleSeat(seat, seatNumber)}>{seat}</button>;
                       }),
                     )}</div>
                     <div className="seat-legend"><span><i className="legend-swatch" /> Available</span><span><i className="legend-swatch selected" /> Selected</span><span className="occupied-label"><i className="legend-swatch occupied" /> Occupied</span></div>
@@ -1301,6 +1775,52 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
                   </div>
                 </>
               )}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {adminSignInOpen && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setAdminSignInOpen(false); }}>
+          <section className="dialog admin-signin-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-signin-title">
+            <div className="dialog-top">
+              <div><p className="section-kicker">Restricted access</p><h2 id="admin-signin-title">Admin sign in</h2></div>
+              <button className="icon-button" type="button" aria-label="Close admin sign in" onClick={() => setAdminSignInOpen(false)}><X size={17} /></button>
+            </div>
+            <div className="dialog-body">
+              <p className="admin-signin-copy">Sign in to manage CinemaWorld operations.</p>
+              <form className="admin-signin-form" noValidate onSubmit={signInToAdmin}>
+                <label>
+                  <span className="field-label">Admin email</span>
+                  <input
+                    className="text-field"
+                    type="email"
+                    autoComplete="username"
+                    required
+                    placeholder="Enter admin email"
+                    value={adminEmail}
+                    aria-invalid={Boolean(adminSignInError)}
+                    aria-describedby={adminSignInError ? "admin-signin-error" : undefined}
+                    onChange={(event) => { setAdminEmail(event.target.value); setAdminSignInError(""); }}
+                  />
+                </label>
+                <label>
+                  <span className="field-label">Password</span>
+                  <input
+                    className="text-field"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    placeholder="Enter admin password"
+                    value={adminPassword}
+                    aria-invalid={Boolean(adminSignInError)}
+                    aria-describedby={adminSignInError ? "admin-signin-error" : undefined}
+                    onChange={(event) => { setAdminPassword(event.target.value); setAdminSignInError(""); }}
+                  />
+                </label>
+                {adminSignInError && <p className="error-message" id="admin-signin-error" role="alert">{adminSignInError}</p>}
+                <button className="primary-button" type="submit">Sign in to Admin <ArrowRight size={15} /></button>
+              </form>
             </div>
           </section>
         </div>
