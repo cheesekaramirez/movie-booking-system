@@ -3,6 +3,9 @@
 import { ArrowLeft, Bell, CalendarDays, Film, RefreshCw, Ticket, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+const adminSessionStorageKey = "cinemaWorldAdminAuthenticated";
 
 type Booking = {
   id: string;
@@ -31,6 +34,8 @@ const movieSummary = [
 ];
 
 export default function AdminPage() {
+  const router = useRouter();
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>(demoBookings);
   const [loading, setLoading] = useState(false);
   const [notificationsRead, setNotificationsRead] = useState(false);
@@ -41,6 +46,24 @@ export default function AdminPage() {
     ) as Booking[];
     return [...stored, ...demoBookings].slice(0, 20);
   }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      let authenticated = false;
+      try {
+        authenticated = window.sessionStorage.getItem(adminSessionStorageKey) === "true";
+      } catch (error) {
+        console.error(error);
+      }
+
+      if (authenticated) {
+        setIsAdminAuthenticated(true);
+      } else {
+        router.replace("/");
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [router]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setBookings(readReservationRecords()), 0);
@@ -60,6 +83,19 @@ export default function AdminPage() {
     }, 350);
   }
 
+  function lockAdmin() {
+    try {
+      window.sessionStorage.removeItem(adminSessionStorageKey);
+    } catch (error) {
+      console.error(error);
+      return;
+    }
+    setIsAdminAuthenticated(false);
+    router.replace("/");
+  }
+
+  if (!isAdminAuthenticated) return null;
+
   return (
     <main className="admin-shell">
       <header className="admin-header">
@@ -70,6 +106,9 @@ export default function AdminPage() {
           <p className="admin-intro">Monitor movie listings, cinema locations, and recent reservations from one place.</p>
         </div>
         <div className="admin-header-actions">
+          <button className="admin-refresh-button" type="button" onClick={lockAdmin}>
+            <ArrowLeft size={15} /> Lock admin
+          </button>
           <button className="admin-notification-button" type="button" aria-label="View booking notifications" onClick={() => setNotificationsRead(true)}>
             <Bell size={16} />
             {!notificationsRead && bookings.some((booking) => booking.status === "New") && <span>{bookings.filter((booking) => booking.status === "New").length}</span>}
