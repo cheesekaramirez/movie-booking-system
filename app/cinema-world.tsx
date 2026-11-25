@@ -1195,7 +1195,7 @@ export default function CinemaWorld({ initialTab = "Now showing" }: { initialTab
               <UserRound size={15} /> Sign out
             </button>
           ) : (
-            <button className="text-button" type="button" onClick={() => { setAuthOpen(true); setAuthMessage(""); }}>
+            <button className="text-button" type="button" hidden onClick={() => { setAuthOpen(true); setAuthMessage(""); }}>
               <UserRound size={15} /> Sign in
             </button>
           )}
