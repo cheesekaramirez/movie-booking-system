@@ -190,19 +190,6 @@ export default function AdminPage() {
         )}
       </section>
 
-      <section className="admin-panel admin-management-panel">
-        <div className="admin-panel-heading">
-          <div>
-            <p className="section-kicker">Management</p>
-            <h2>Quick actions</h2>
-          </div>
-        </div>
-        <div className="admin-action-grid">
-          <div><Film size={18} /><strong>Movie listings</strong><span>Review titles, genres, formats, and release dates.</span></div>
-          <div><CalendarDays size={18} /><strong>Screening schedules</strong><span>Keep showtimes and cinema availability up to date.</span></div>
-          <div><Users size={18} /><strong>Customer support</strong><span>Use reservation details to help guests with their bookings.</span></div>
-        </div>
-      </section>
     </main>
   );
 }
